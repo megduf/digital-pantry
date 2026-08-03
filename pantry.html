@@ -259,6 +259,7 @@
         <button class="btn" id="btnManageCats">Categories</button>
         <button class="btn btn-primary" id="btnAddItem">+ Add item</button>
       </div>
+      <div class="btn-row" id="pantryToolbar" style="margin-bottom:12px;"></div>
       <div id="pantryList"></div>
     </section>
 
@@ -301,7 +302,7 @@
   </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div id="modalRoot"></div>
 
 <script>
@@ -417,28 +418,48 @@
   }
 
   // ---------- Modal helper ----------
+  function focusableIn(container) {
+    var els = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    return Array.prototype.filter.call(els, function (el) { return !el.disabled && el.offsetParent !== null; });
+  }
   function openModal(html, opts) {
     var root = document.getElementById("modalRoot");
     var overlay = document.createElement("div");
     overlay.className = "modal-overlay open";
-    overlay.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' + html + "</div>";
+    overlay.innerHTML = '<div class="modal" role="dialog" aria-modal="true" tabindex="-1">' + html + "</div>";
     root.appendChild(overlay);
     overlay.addEventListener("mousedown", function (e) { if (e.target === overlay && !(opts && opts.persistent)) closeModal(overlay); });
     document.addEventListener("keydown", function esc2(e) { if (e.key === "Escape") { closeModal(overlay); document.removeEventListener("keydown", esc2); } });
+    overlay.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab") return;
+      var focusable = focusableIn(overlay);
+      if (!focusable.length) return;
+      var first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    setTimeout(function () {
+      var body = overlay.querySelector(".modal-body");
+      var target = body && body.querySelector("input:not([disabled]):not([type=checkbox]), select, textarea");
+      (target || overlay.querySelector(".modal")).focus();
+    }, 30);
     return overlay;
   }
   function closeModal(overlay) { overlay.classList.remove("open"); setTimeout(function () { overlay.remove(); }, 120); }
 
   // ================= PANTRY =================
-  function findPantryMatch(name) {
+  function findPantryMatches(name) {
     var n = normName(name);
-    var found = null;
-    state.items.forEach(function (it) {
-      if (found) return;
+    var exact = state.items.filter(function (it) { return normName(it.name) === n; });
+    if (exact.length) return exact;
+    return state.items.filter(function (it) {
       var itn = normName(it.name);
-      if (itn === n || itn.indexOf(n) !== -1 || n.indexOf(itn) !== -1) found = it;
+      return itn.indexOf(n) !== -1 || n.indexOf(itn) !== -1;
     });
-    return found;
+  }
+  function findPantryMatch(name) {
+    var matches = findPantryMatches(name);
+    return matches.length ? matches[0] : null;
   }
 
   function addOrIncrementPantryItem(data) {
@@ -467,6 +488,25 @@
     var q = (document.getElementById("pantrySearch").value || "").toLowerCase().trim();
     var list = document.getElementById("pantryList");
     var items = state.items.filter(function (it) { return !q || it.name.toLowerCase().indexOf(q) !== -1; });
+
+    var toolbar = document.getElementById("pantryToolbar");
+    if (state.items.length === 0) {
+      toolbar.innerHTML = "";
+    } else {
+      toolbar.innerHTML =
+        '<button class="btn btn-ghost btn-sm" id="btnStarterAgain">Browse starter checklist</button>' +
+        '<button class="btn btn-ghost btn-sm" id="btnExpandAll">Expand all</button>' +
+        '<button class="btn btn-ghost btn-sm" id="btnCollapseAll">Collapse all</button>';
+      document.getElementById("btnStarterAgain").addEventListener("click", openStarterChecklist);
+      document.getElementById("btnExpandAll").addEventListener("click", function () {
+        state.categories.forEach(function (c) { state.openCats[c] = true; });
+        save(); renderPantry();
+      });
+      document.getElementById("btnCollapseAll").addEventListener("click", function () {
+        state.openCats = {};
+        save(); renderPantry();
+      });
+    }
 
     if (state.items.length === 0) {
       list.innerHTML =
@@ -603,16 +643,21 @@
     });
   }
 
-  function openItemForm(existing) {
+  var SOURCE_LABEL = { receipt: "Added from a receipt scan", manual: "Added manually", "common-item-checklist": "Added from the starter checklist" };
+  function openItemForm(existing, prefill) {
     var isEdit = !!existing;
+    var pf = prefill || {};
     var html =
       '<div class="modal-head"><h2>' + (isEdit ? "Edit item" : "Add item") + '</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
       '<div class="modal-body">' +
-      '<div class="field"><label for="fName">Name</label><input id="fName" type="text" value="' + (isEdit ? esc(existing.name) : "") + '" placeholder="e.g. 2% Milk" /></div>' +
-      '<div class="field"><label for="fCat">Category</label><select id="fCat">' + categoryOptions(isEdit ? existing.category : state.categories[0]) + "</select></div>" +
+      (isEdit ? '<p class="divider-note" style="margin-top:-4px;">' + esc(SOURCE_LABEL[existing.source] || "Added manually") +
+        (existing.raw_label ? " — receipt line: “" + esc(existing.raw_label) + "”" : "") +
+        " · last updated " + new Date(existing.last_updated).toLocaleDateString() + "</p>" : "") +
+      '<div class="field"><label for="fName">Name</label><input id="fName" type="text" value="' + (isEdit ? esc(existing.name) : esc(pf.name || "")) + '" placeholder="e.g. 2% Milk" /></div>' +
+      '<div class="field"><label for="fCat">Category</label><select id="fCat">' + categoryOptions(isEdit ? existing.category : (pf.category || state.categories[0])) + "</select></div>" +
       '<div class="field-row">' +
-      '<div class="field"><label for="fType">Tracked by</label><select id="fType"><option value="count"' + (isEdit && existing.quantity_type === "count" ? " selected" : "") + '>Count</option><option value="weight"' + (isEdit && existing.quantity_type === "weight" ? " selected" : "") + ">Weight</option></select></div>" +
-      '<div class="field"><label for="fQty">Quantity</label><input id="fQty" type="number" min="0" step="0.1" value="' + (isEdit ? existing.quantity_value : 1) + '" /></div>' +
+      '<div class="field"><label for="fType">Tracked by</label><select id="fType"><option value="count"' + (isEdit ? existing.quantity_type === "count" ? " selected" : "" : pf.quantity_type !== "weight" ? " selected" : "") + '>Count</option><option value="weight"' + (isEdit ? existing.quantity_type === "weight" ? " selected" : "" : pf.quantity_type === "weight" ? " selected" : "") + ">Weight</option></select></div>" +
+      '<div class="field"><label for="fQty">Quantity</label><input id="fQty" type="number" min="0" step="0.1" value="' + (isEdit ? existing.quantity_value : (pf.quantity_value != null ? pf.quantity_value : 1)) + '" /></div>' +
       '<div class="field" id="fUnitWrap" style="max-width:110px;"><label for="fUnit">Unit</label><select id="fUnit"><option value="lb">lb</option><option value="oz">oz</option><option value="kg">kg</option><option value="g">g</option></select></div>' +
       "</div></div>" +
       '<div class="modal-foot">' +
@@ -647,6 +692,7 @@
         data.source = "manual";
         addOrIncrementPantryItem(data);
         toast("Added " + data.name + " to pantry");
+        if (pf.onSaved) pf.onSaved();
       }
       save(); renderPantry(); closeModal(ov);
     });
@@ -655,28 +701,28 @@
 
   // ---------- Starter checklist ----------
   function openStarterChecklist() {
-    var picked = {};
     var html =
       '<div class="modal-head"><h2>Starter checklist</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
       '<div class="modal-body">' +
-      '<p class="divider-note">Tap what you already have. Add a quantity if you know it — otherwise it\'s just marked in stock.</p>' +
+      '<p class="divider-note">Tap what you already have. Add a quantity if you know it — otherwise it\'s just marked in stock. Items already in your pantry are checked and locked.</p>' +
       Object.keys(STARTER_LIST).map(function (cat) {
         return '<div class="starter-cat"><h3>' + esc(cat) + '</h3><div class="starter-grid">' +
           STARTER_LIST[cat].map(function (name) {
             var id = "sc_" + cat.replace(/\W/g, "") + "_" + name.replace(/\W/g, "");
-            return '<label class="starter-chip" data-id="' + id + '"><input type="checkbox" data-name="' + esc(name) + '" data-cat="' + esc(cat) + '" />' + esc(name) + "</label>";
+            var already = state.items.some(function (it) { return normName(it.name) === normName(name); });
+            return '<label class="starter-chip' + (already ? " picked" : "") + '" data-id="' + id + '"><input type="checkbox" data-name="' + esc(name) + '" data-cat="' + esc(cat) + '"' + (already ? " checked disabled" : "") + " />" + esc(name) + (already ? ' <span style="opacity:.6;">✓ in pantry</span>' : "") + "</label>";
           }).join("") + "</div></div>";
       }).join("") +
       "</div>" +
       '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Add checked items</button></div>';
     var ov = openModal(html);
-    ov.querySelectorAll(".starter-chip input").forEach(function (cb) {
+    ov.querySelectorAll(".starter-chip input:not(:disabled)").forEach(function (cb) {
       cb.addEventListener("change", function () { cb.closest(".starter-chip").classList.toggle("picked", cb.checked); });
     });
     ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
     ov.querySelector("[data-save]").addEventListener("click", function () {
       var added = 0;
-      ov.querySelectorAll(".starter-chip input:checked").forEach(function (cb) {
+      ov.querySelectorAll(".starter-chip input:checked:not(:disabled)").forEach(function (cb) {
         addOrIncrementPantryItem({ name: cb.getAttribute("data-name"), category: cb.getAttribute("data-cat"), quantity_type: "count", quantity_value: 1, source: "common-item-checklist" });
         added++;
       });
@@ -708,6 +754,7 @@
         '<span class="label"><span class="name">' + esc(g.name) + (qtyStr ? ' <span style="color:var(--ink-faint);font-weight:400;">— ' + esc(qtyStr) + "</span>" : "") + "</span>" +
         (g.note ? '<span class="note">' + esc(g.note) + "</span>" : "") + "</span>" +
         '<span class="pill ' + (g.source === "manual" ? "pill-manual" : "pill-auto") + '">' + (g.source === "manual" ? "manual" : "recipe") + "</span>" +
+        (g.checked ? '<button class="btn btn-sm" data-to-pantry="' + g.id + '">Move to pantry</button>' : "") +
         '<button class="btn btn-ghost btn-sm" data-edit-grocery="' + g.id + '">Edit</button>' +
         '<button class="btn btn-ghost btn-sm" data-remove="' + g.id + '">✕</button></div>';
     }
@@ -736,6 +783,24 @@
       b.addEventListener("click", function () {
         var g = state.grocery.find(function (x) { return x.id === b.getAttribute("data-edit-grocery"); });
         if (g) openGroceryEdit(g);
+      });
+    });
+    list.querySelectorAll("[data-to-pantry]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var id = b.getAttribute("data-to-pantry");
+        var g = state.grocery.find(function (x) { return x.id === id; });
+        if (!g) return;
+        var match = findPantryMatch(g.name);
+        openItemForm(null, {
+          name: g.name,
+          category: match ? match.category : undefined,
+          quantity_type: g.unit && WEIGHT_UNITS.indexOf(g.unit.toLowerCase()) !== -1 ? "weight" : "count",
+          quantity_value: g.quantity || 1,
+          onSaved: function () {
+            state.grocery = state.grocery.filter(function (x) { return x.id !== id; });
+            save(); renderGrocery();
+          }
+        });
       });
     });
   }
@@ -917,9 +982,11 @@
     var r = state.recipes.find(function (x) { return x.id === id; });
     var subtracted = [], added = [], reconcile = [];
     r.ingredients.forEach(function (ing) {
-      if (VOLUME_UNITS.indexOf(ing.unit) !== -1) { reconcile.push(ing); return; }
-      var match = findPantryMatch(ing.name);
+      if (VOLUME_UNITS.indexOf(ing.unit) !== -1) { reconcile.push({ ing: ing, reason: "volume" }); return; }
+      var matches = findPantryMatches(ing.name);
       var needed = ing.quantity || 1;
+      if (matches.length > 1) { reconcile.push({ ing: ing, reason: "ambiguous", candidates: matches }); return; }
+      var match = matches[0] || null;
       if (match && match.quantity_value >= needed) {
         match.quantity_value = round2(match.quantity_value - needed);
         match.last_updated = nowIso();
@@ -939,17 +1006,24 @@
   }
 
   function showCookResult(recipeName, subtracted, added, reconcile) {
-    function fmt(x) { return x.amount + (x.unit ? " " + x.unit : "") + " " + x.name; }
     var body = "";
     if (subtracted.length) body += '<div class="result-group subtracted"><h4>Subtracted from pantry</h4>' + subtracted.map(function (x) { return '<div class="result-item"><span>' + esc(x.name) + "</span><span>−" + esc(x.amount + (x.unit ? " " + x.unit : "")) + "</span></div>"; }).join("") + "</div>";
     if (added.length) body += '<div class="result-group added"><h4>Added to grocery list</h4>' + added.map(function (x) { return '<div class="result-item"><span>' + esc(x.name) + "</span><span>+" + esc(x.amount + (x.unit ? " " + x.unit : "")) + "</span></div>"; }).join("") + "</div>";
     if (reconcile.length) {
       body += '<div class="result-group reconcile"><h4>Needs your input</h4>' +
-        reconcile.map(function (ing, i) {
+        reconcile.map(function (r, i) {
+          var ing = r.ing;
+          var reasonLabel = r.reason === "volume" ? "volume unit" : "matches " + r.candidates.length + " pantry items";
+          var actions = "";
+          if (r.reason === "ambiguous") {
+            actions = r.candidates.map(function (c) {
+              return '<button class="btn btn-sm" data-resolve-subtract="' + c.id + '" data-need="' + (ing.quantity || 1) + '" data-ing="' + esc(ing.name) + '" data-unit="' + esc(ing.unit) + '">Use ' + esc(c.name) + "</button>";
+            }).join("");
+          }
           return '<div class="result-item" style="flex-direction:column;align-items:stretch;" data-rec="' + i + '">' +
-            '<div style="display:flex;justify-content:space-between;"><span>' + esc(ing.quantity + " " + ing.unit + " " + ing.name) + '</span><span style="color:var(--ink-faint);">volume unit</span></div>' +
-            '<div class="reconcile-actions">' +
-            '<button class="btn btn-sm" data-resolve-grocery="' + esc(ing.name) + '" data-qty="' + ing.quantity + '" data-unit="' + esc(ing.unit) + '">Add to grocery list</button>' +
+            '<div style="display:flex;justify-content:space-between;"><span>' + esc((ing.quantity || 1) + " " + ing.unit + " " + ing.name) + '</span><span style="color:var(--ink-faint);">' + esc(reasonLabel) + "</span></div>" +
+            '<div class="reconcile-actions">' + actions +
+            '<button class="btn btn-sm" data-resolve-grocery="' + esc(ing.name) + '" data-qty="' + (ing.quantity || 1) + '" data-unit="' + esc(ing.unit) + '">Add to grocery list</button>' +
             '<button class="btn btn-ghost btn-sm" data-resolve-skip>Skip</button></div></div>';
         }).join("") + "</div>";
     }
@@ -959,17 +1033,33 @@
       '<div class="modal-foot"><button class="btn btn-primary" data-close>Done</button></div>';
     var ov = openModal(html);
     ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelectorAll("[data-resolve-subtract]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var item = state.items.find(function (x) { return x.id === b.getAttribute("data-resolve-subtract"); });
+        var need = parseFloat(b.getAttribute("data-need")) || 1;
+        if (item) {
+          if (item.quantity_value >= need) { item.quantity_value = round2(item.quantity_value - need); }
+          else {
+            var shortfall = round2(need - item.quantity_value);
+            item.quantity_value = 0;
+            addOrIncrementGrocery(item.name, shortfall, b.getAttribute("data-unit"), "for " + recipeName);
+          }
+          item.last_updated = nowIso();
+        }
+        save(); renderPantry(); renderGrocery();
+        b.closest(".result-item").querySelector(".reconcile-actions").innerHTML = "Used " + esc(item ? item.name : "");
+      });
+    });
     ov.querySelectorAll("[data-resolve-grocery]").forEach(function (b) {
       b.addEventListener("click", function () {
         addOrIncrementGrocery(b.getAttribute("data-resolve-grocery"), parseFloat(b.getAttribute("data-qty")), b.getAttribute("data-unit"), "for " + recipeName);
         save(); renderGrocery();
-        b.closest(".result-item").style.opacity = ".4";
-        b.parentElement.innerHTML = "Added to grocery list";
+        b.closest(".result-item").querySelector(".reconcile-actions").innerHTML = "Added to grocery list";
         toast("Added to grocery list");
       });
     });
     ov.querySelectorAll("[data-resolve-skip]").forEach(function (b) {
-      b.addEventListener("click", function () { b.closest(".result-item").style.opacity = ".4"; b.parentElement.innerHTML = "Skipped"; });
+      b.addEventListener("click", function () { b.closest(".result-item").querySelector(".reconcile-actions").innerHTML = "Skipped"; });
     });
   }
 

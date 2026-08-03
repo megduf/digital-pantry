@@ -185,6 +185,17 @@ Note: the first web-artifact prototype cannot make live AI calls (no such runtim
 - Recipes are editable after saving — rename, edit/remove ingredient lines, or add a forgotten one — instead of only viewable or deletable
 - Grocery items are editable in place (name/quantity/unit), not just checkable or removable
 
+**Phase 4** (2026-08-02): closing gaps between tabs, and correctness on cook —
+- Grocery items, once checked off (bought), get a "Move to pantry" action that opens a prefilled add-item form and removes the item from the grocery list on save — previously the only way back into the pantry was a fresh manual/receipt add, even for something just bought off the list
+- Item traceability surfaced in the edit modal: source (receipt/manual/starter checklist), the original receipt line text if any, and last-updated date — the `raw_label` field was always stored (§2.1) but never shown anywhere
+- "Mark as cooked" no longer silently grabs the first fuzzy pantry match when an ingredient name matches more than one item (e.g. "milk" matching both "2% Milk" and "Whole Milk") — it's now flagged in the same "needs your input" panel as unit mismatches, with a button per candidate item
+
+**Phase 5** (2026-08-02): accessibility and reachability polish —
+- Starter checklist is reachable anytime from the Pantry toolbar, not just on first run; items already in the pantry show as checked and locked so re-browsing it can't create duplicates
+- Expand all / Collapse all for pantry categories
+- Modals: focus moves to the first field on open, Tab is trapped within the modal while open (previously focus could escape to the page behind it)
+- Toast notifications are announced to screen readers (`role="status" aria-live="polite"`)
+
 Still not buildable inside an Artifact and deferred to the real backed app: actual AI vision OCR, actual AI recipe parsing, native mobile, multi-user household sharing, real cloud sync.
 
 *Doc is ready to drive continued prototype iteration and, eventually, the real build.*
