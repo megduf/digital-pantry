@@ -1110,9 +1110,16 @@
     });
   }
 
+  function todayIsoDate() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
   function openReceiptReview(store, lines) {
     var html = '<div class="modal-head"><h2>' + esc(store) + " — review</h2><button class=\"btn btn-ghost\" data-close>✕</button></div>" +
-      '<div class="modal-body"><p class="divider-note">Simulated scan result — a vision model reads the real receipt in the finished app. Uncheck lines that aren\'t items; fix names, categories, or quantities.</p>' +
+      '<div class="modal-body">' +
+      '<div class="field"><label for="rcptDate">Receipt date</label><input type="date" id="rcptDate" value="' + todayIsoDate() + '" max="' + todayIsoDate() + '" /></div>' +
+      '<p class="divider-note">Simulated scan result — a vision model reads the real receipt in the finished app. Uncheck lines that aren\'t items; fix names, categories, or quantities.</p>' +
       lines.map(function (l, i) {
         if (l.notItem) {
           return '<div class="check-line excluded" data-i="' + i + '" data-notitem="1"><input type="checkbox" data-inc />' +
@@ -1156,7 +1163,9 @@
         if (price != null && !isNaN(price)) total = round2(total + price);
         count++;
       });
-      state.receipts.push({ id: uid(), store: store, date: nowIso(), itemCount: count, total: total });
+      var dateVal = ov.querySelector("#rcptDate").value;
+      var receiptDate = dateVal ? new Date(dateVal + "T12:00:00").toISOString() : nowIso();
+      state.receipts.push({ id: uid(), store: store, date: receiptDate, itemCount: count, total: total });
       save(); renderPantry(); renderReceiptHistory(); closeModal(ov);
       toast("Added " + count + " item" + (count === 1 ? "" : "s") + " from " + store);
     });
