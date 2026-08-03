@@ -196,6 +196,8 @@ Note: the first web-artifact prototype cannot make live AI calls (no such runtim
 - Modals: focus moves to the first field on open, Tab is trapped within the modal while open (previously focus could escape to the page behind it)
 - Toast notifications are announced to screen readers (`role="status" aria-live="polite"`)
 
+**Money spent** (2026-08-03): receipt line items now carry an optional price (added to the mock scan data, and to the "paste receipt text" parser via a `$` pattern) shown as an editable field in the review checklist. On confirm, the total of included lines is stored on that receipt's history record. The Receipts tab shows a "spent this month" stat plus a month-by-month breakdown, computed from receipt totals — this wasn't in the original spec's data model (§2) but is a natural extension once receipts carry prices at all. Pantry items themselves still don't carry a price field, matching §2.1 as written; cost lives only on the receipt record.
+
 Still not buildable inside an Artifact and deferred to the real backed app: actual AI vision OCR, actual AI recipe parsing, native mobile, multi-user household sharing, real cloud sync.
 
 *Doc is ready to drive continued prototype iteration and, eventually, the real build.*

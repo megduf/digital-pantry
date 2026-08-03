@@ -229,6 +229,9 @@
   .stat { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; }
   .stat .n { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
   .stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
+  .spend-month-row { display: flex; justify-content: space-between; padding: 7px 2px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .spend-month-row:last-child { border-bottom: none; }
+  .spend-month-row .amt { font-variant-numeric: tabular-nums; font-weight: 600; }
 
   .receipt-store-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
   .store-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 12px 16px; text-align: left; flex: 1 1 140px; }
@@ -296,6 +299,7 @@
       </div>
       <button class="btn btn-block" id="btnPasteReceipt" style="margin-bottom:8px;">+ Paste receipt text (PDF, email, or Farmers Market)</button>
       <button class="btn btn-block" id="btnManualReceipt">+ Add receipt item manually</button>
+      <div id="spendSummary"></div>
       <h2 style="font-size:16px;margin:22px 0 8px;">Past receipts</h2>
       <div id="receiptHistory"></div>
     </section>
@@ -327,40 +331,40 @@
 
   var MOCK_RECEIPTS = {
     "Trader Joe's": [
-      { raw: "TJ ORG BANANAS", name: "Bananas", category: "Fruits", qty: 1, unit: "count" },
-      { raw: "WHIPPING CREAM PT", name: "Whipping Cream", category: "Dairy & Eggs", qty: 1, unit: "count" },
-      { raw: "4536 CIN THINS", name: "SKU 4536 — unknown item", category: "Snacks", qty: 1, unit: "count", cryptic: true },
-      { raw: "UNSALTED BUTTER", name: "Butter", category: "Dairy & Eggs", qty: 2, unit: "count" },
-      { raw: "ORG EGGS LG DZ", name: "Eggs", category: "Dairy & Eggs", qty: 1, unit: "count" },
-      { raw: "ORG BABY SPINACH", name: "Leafy Greens", category: "Vegetables", qty: 1, unit: "count" },
+      { raw: "TJ ORG BANANAS", name: "Bananas", category: "Fruits", qty: 1, unit: "count", price: 1.99 },
+      { raw: "WHIPPING CREAM PT", name: "Whipping Cream", category: "Dairy & Eggs", qty: 1, unit: "count", price: 3.49 },
+      { raw: "4536 CIN THINS", name: "SKU 4536 — unknown item", category: "Snacks", qty: 1, unit: "count", cryptic: true, price: 3.99 },
+      { raw: "UNSALTED BUTTER", name: "Butter", category: "Dairy & Eggs", qty: 2, unit: "count", price: 8.98 },
+      { raw: "ORG EGGS LG DZ", name: "Eggs", category: "Dairy & Eggs", qty: 1, unit: "count", price: 4.29 },
+      { raw: "ORG BABY SPINACH", name: "Leafy Greens", category: "Vegetables", qty: 1, unit: "count", price: 2.99 },
       { raw: "SUBTOTAL", notItem: true },
       { raw: "TAX", notItem: true }
     ],
     "Safeway": [
-      { raw: "SFY 2% MILK GAL", name: "2% Milk", category: "Dairy & Eggs", qty: 1, unit: "count" },
-      { raw: "CHKN BRST BNLS", name: "Chicken Breast", category: "Meat & Poultry", qty: 1.4, unit: "lb", weight: true },
-      { raw: "RUSSET POTATO 5LB", name: "Potatoes", category: "Vegetables", qty: 5, unit: "lb", weight: true },
-      { raw: "KLNX PAPER TWL", name: "Paper Towels", category: "Household / Non-Food", qty: 1, unit: "count" },
+      { raw: "SFY 2% MILK GAL", name: "2% Milk", category: "Dairy & Eggs", qty: 1, unit: "count", price: 4.49 },
+      { raw: "CHKN BRST BNLS", name: "Chicken Breast", category: "Meat & Poultry", qty: 1.4, unit: "lb", weight: true, price: 6.99 },
+      { raw: "RUSSET POTATO 5LB", name: "Potatoes", category: "Vegetables", qty: 5, unit: "lb", weight: true, price: 4.99 },
+      { raw: "KLNX PAPER TWL", name: "Paper Towels", category: "Household / Non-Food", qty: 1, unit: "count", price: 7.49 },
       { raw: "CLUB CARD SAVINGS", notItem: true },
       { raw: "BALANCE DUE", notItem: true }
     ],
     "Costco": [
-      { raw: "KS ORG EGGS 24CT", name: "Eggs", category: "Dairy & Eggs", qty: 1, unit: "count" },
-      { raw: "ROT CHICKEN", name: "Rotisserie Chicken", category: "Meat & Poultry", qty: 1, unit: "count" },
-      { raw: "KS OLIVE OIL 2L", name: "Olive Oil", category: "Pantry Staples", qty: 1, unit: "count" },
-      { raw: "BANANA 3LB", name: "Bananas", category: "Fruits", qty: 3, unit: "lb", weight: true },
-      { raw: "KS PAPER TOWEL 12PK", name: "Paper Towels", category: "Household / Non-Food", qty: 12, unit: "count" },
-      { raw: "E 84509 FRZ BERRY BLND", name: "Frozen Fruit", category: "Frozen", qty: 1, unit: "count" },
+      { raw: "KS ORG EGGS 24CT", name: "Eggs", category: "Dairy & Eggs", qty: 1, unit: "count", price: 6.99 },
+      { raw: "ROT CHICKEN", name: "Rotisserie Chicken", category: "Meat & Poultry", qty: 1, unit: "count", price: 4.99 },
+      { raw: "KS OLIVE OIL 2L", name: "Olive Oil", category: "Pantry Staples", qty: 1, unit: "count", price: 13.99 },
+      { raw: "BANANA 3LB", name: "Bananas", category: "Fruits", qty: 3, unit: "lb", weight: true, price: 1.49 },
+      { raw: "KS PAPER TOWEL 12PK", name: "Paper Towels", category: "Household / Non-Food", qty: 12, unit: "count", price: 21.99 },
+      { raw: "E 84509 FRZ BERRY BLND", name: "Frozen Fruit", category: "Frozen", qty: 1, unit: "count", price: 9.99 },
       { raw: "TOTAL", notItem: true },
       { raw: "MEMBER SAVINGS", notItem: true }
     ],
     "Ranch 99": [
-      { raw: "99 BOK CHOY", name: "Bok Choy", category: "Vegetables", qty: 1, unit: "count" },
-      { raw: "99 TOFU FIRM", name: "Tofu", category: "Pantry Staples", qty: 2, unit: "count" },
-      { raw: "CHAR SIU PORK", name: "Char Siu Pork", category: "Meat & Poultry", qty: 1, unit: "count" },
-      { raw: "JASMINE RICE 25LB", name: "Rice", category: "Starches", qty: 25, unit: "lb", weight: true },
-      { raw: "99 SOY SAUCE LOW SOD", name: "Soy Sauce", category: "Pantry Staples", qty: 1, unit: "count" },
-      { raw: "88301 6", name: "SKU 88301 — unknown item", category: "Snacks", qty: 1, unit: "count", cryptic: true },
+      { raw: "99 BOK CHOY", name: "Bok Choy", category: "Vegetables", qty: 1, unit: "count", price: 1.99 },
+      { raw: "99 TOFU FIRM", name: "Tofu", category: "Pantry Staples", qty: 2, unit: "count", price: 2.98 },
+      { raw: "CHAR SIU PORK", name: "Char Siu Pork", category: "Meat & Poultry", qty: 1, unit: "count", price: 8.99 },
+      { raw: "JASMINE RICE 25LB", name: "Rice", category: "Starches", qty: 25, unit: "lb", weight: true, price: 24.99 },
+      { raw: "99 SOY SAUCE LOW SOD", name: "Soy Sauce", category: "Pantry Staples", qty: 1, unit: "count", price: 3.49 },
+      { raw: "88301 6", name: "SKU 88301 — unknown item", category: "Snacks", qty: 1, unit: "count", cryptic: true, price: 2.99 },
       { raw: "SUBTOTAL", notItem: true },
       { raw: "TAX", notItem: true }
     ]
@@ -1071,23 +1075,27 @@
   document.getElementById("btnPasteReceipt").addEventListener("click", openPasteReceipt);
 
   function parseReceiptLine(line) {
-    line = line.trim().replace(/^[-*•]\s*/, "");
-    if (!line) return null;
-    var m = line.match(/^([\d.\/]+)\s*(lbs?|oz|kg|g)?\s*x?\s*(.+)$/i);
+    var raw = line.trim().replace(/^[-*•]\s*/, "");
+    if (!raw) return null;
+    var line2 = raw;
+    var price = null;
+    var priceMatch = line2.match(/\$\s*([\d]+\.?\d*)/);
+    if (priceMatch) { price = parseFloat(priceMatch[1]); line2 = line2.replace(priceMatch[0], "").trim(); }
+    var m = line2.match(/^([\d.\/]+)\s*(lbs?|oz|kg|g)?\s*x?\s*(.+)$/i);
     var qty = 1, unit = "count", weight = false, name;
     if (m && m[2]) { qty = parseFloat(m[1]) || 1; unit = m[2].toLowerCase().replace(/s$/, ""); weight = true; name = m[3]; }
     else if (m && /^\d+$/.test(m[1]) && m[3]) { qty = parseFloat(m[1]) || 1; name = m[3]; }
-    else name = line;
+    else name = line2;
     name = titleCase(name.replace(/[,.]$/, "").trim());
     if (!name) return null;
-    return { raw: line, name: name, category: "Pantry Staples", qty: qty, unit: weight ? unit : "count", weight: weight };
+    return { raw: raw, name: name, category: "Pantry Staples", qty: qty, unit: weight ? unit : "count", weight: weight, price: price };
   }
 
   function openPasteReceipt() {
     var html = '<div class="modal-head"><h2>Paste receipt text</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
       '<div class="modal-body">' +
-      '<p class="divider-note">Works for a Farmers Market receipt, a forwarded email, or text copied out of a PDF — one item per line. A vision model would read a photo directly; this stands in for that until it\'s wired up.</p>' +
-      '<div class="field"><label for="rcptText">Receipt text</label><textarea id="rcptText" placeholder="6 tomatoes\n2 lb peaches\nsourdough loaf\nhoney jar"></textarea></div>' +
+      '<p class="divider-note">Works for a Farmers Market receipt, a forwarded email, or text copied out of a PDF — one item per line. Include a $ price if you have it. A vision model would read a photo directly; this stands in for that until it\'s wired up.</p>' +
+      '<div class="field"><label for="rcptText">Receipt text</label><textarea id="rcptText" placeholder="6 tomatoes $4.50\n2 lb peaches $3.00\nsourdough loaf $5.50\nhoney jar $8.00"></textarea></div>' +
       "</div>" +
       '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-parse>Parse items →</button></div>';
     var ov = openModal(html);
@@ -1115,7 +1123,11 @@
           '<div style="flex:1;"><div class="raw">' + esc(l.raw) + '</div><div class="grid">' +
           '<input type="text" value="' + esc(l.name) + '" data-f="name" />' +
           '<input type="number" step="0.1" value="' + l.qty + '" data-f="qty" />' +
-          '<select data-f="cat">' + categoryOptions(l.category) + "</select></div>" + flag + "</div></div>";
+          '<select data-f="cat">' + categoryOptions(l.category) + "</select></div>" +
+          '<div style="margin-top:6px;display:flex;align-items:center;gap:6px;">' +
+          '<span style="font-size:12px;color:var(--ink-faint);">Price $</span>' +
+          '<input type="number" step="0.01" min="0" value="' + (l.price != null ? l.price : "") + '" placeholder="0.00" data-f="price" style="width:80px;padding:5px 7px;border:1px solid var(--line);border-radius:3px;background:var(--paper);font-size:13px;" />' +
+          "</div>" + flag + "</div></div>";
       }).join("") + "</div>" +
       '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-confirm>Confirm & add to pantry</button></div>';
     var ov = openModal(html);
@@ -1124,13 +1136,15 @@
       cb.addEventListener("change", function () { cb.closest(".check-line").classList.toggle("excluded", !cb.checked); });
     });
     ov.querySelector("[data-confirm]").addEventListener("click", function () {
-      var count = 0;
+      var count = 0, total = 0;
       ov.querySelectorAll(".check-line").forEach(function (line) {
         if (line.getAttribute("data-notitem")) return;
         if (!line.querySelector("[data-inc]").checked) return;
         var name = line.querySelector('[data-f="name"]').value.trim();
         var qty = parseFloat(line.querySelector('[data-f="qty"]').value) || 1;
         var cat = line.querySelector('[data-f="cat"]').value;
+        var priceField = line.querySelector('[data-f="price"]');
+        var price = priceField && priceField.value !== "" ? parseFloat(priceField.value) : null;
         var idx = parseInt(line.getAttribute("data-i"), 10);
         var orig = lines[idx];
         addOrIncrementPantryItem({
@@ -1139,20 +1153,52 @@
           quantity_value: qty, weight_unit: orig.weight ? "lb" : null,
           source: "receipt", raw_label: orig.raw
         });
+        if (price != null && !isNaN(price)) total = round2(total + price);
         count++;
       });
-      state.receipts.push({ id: uid(), store: store, date: nowIso(), itemCount: count });
+      state.receipts.push({ id: uid(), store: store, date: nowIso(), itemCount: count, total: total });
       save(); renderPantry(); renderReceiptHistory(); closeModal(ov);
       toast("Added " + count + " item" + (count === 1 ? "" : "s") + " from " + store);
     });
   }
 
+  function money(n) { return "$" + (Math.round(n * 100) / 100).toFixed(2); }
+  function monthKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
+
+  function renderSpendSummary() {
+    var el = document.getElementById("spendSummary");
+    var withSpend = state.receipts.filter(function (r) { return r.total != null; });
+    if (withSpend.length === 0) {
+      el.innerHTML = '<p class="divider-note">Money spent shows up here once a receipt has prices entered.</p>';
+      return;
+    }
+    var byMonth = {};
+    withSpend.forEach(function (r) {
+      var key = monthKey(new Date(r.date));
+      byMonth[key] = (byMonth[key] || 0) + r.total;
+    });
+    var now = new Date();
+    var currentKey = monthKey(now);
+    var months = Object.keys(byMonth).sort().reverse();
+    var currentTotal = byMonth[currentKey] || 0;
+    var html = '<div class="stat-row"><div class="stat"><div class="n">' + money(currentTotal) + '</div><div class="l">Spent this month</div></div></div>';
+    if (months.length) {
+      html += '<div class="card">' + months.map(function (key) {
+        var d = new Date(key + "-01T00:00:00");
+        var label = d.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+        return '<div class="spend-month-row"><span>' + esc(label) + (key === currentKey ? " (current)" : "") + '</span><span class="amt">' + money(byMonth[key]) + "</span></div>";
+      }).join("") + "</div>";
+    }
+    el.innerHTML = html;
+  }
+
   function renderReceiptHistory() {
+    renderSpendSummary();
     var el = document.getElementById("receiptHistory");
     if (state.receipts.length === 0) { el.innerHTML = '<p class="divider-note">No receipts scanned yet.</p>'; return; }
     el.innerHTML = state.receipts.slice().reverse().map(function (r) {
       var d = new Date(r.date);
-      return '<div class="card"><div class="card-title" style="font-size:14px;">' + esc(r.store) + '</div><div class="card-sub">' + d.toLocaleDateString() + " · " + r.itemCount + " item" + (r.itemCount === 1 ? "" : "s") + " added</div></div>";
+      return '<div class="card"><div class="card-title" style="font-size:14px;">' + esc(r.store) + '</div><div class="card-sub">' + d.toLocaleDateString() + " · " + r.itemCount + " item" + (r.itemCount === 1 ? "" : "s") + " added" + (r.total != null ? " · " + money(r.total) : "") + "</div></div>";
     }).join("");
   }
 
