@@ -202,4 +202,18 @@ The receipt review checklist also has a **receipt date** field (defaults to toda
 
 Still not buildable inside an Artifact and deferred to the real backed app: actual AI vision OCR, actual AI recipe parsing, native mobile, multi-user household sharing, real cloud sync.
 
+---
+
+## 9. Real Backend (started 2026-08-03)
+
+Started the real backend the prototype was always meant to hand off to. Lives in `server/` alongside the prototype in this same repo.
+
+**Stack:** Node.js + TypeScript + Express. SQLite via Node's built-in `node:sqlite` (no native build step — deliberately avoids `better-sqlite3`/node-gyp given this machine's earlier permission/build friction). Real Claude API integration (`@anthropic-ai/sdk`, model `claude-opus-4-8`, structured outputs via `output_config.format` + Zod schemas) for the two things the prototype could only simulate:
+- `POST /api/receipts/parse-image` — real vision OCR on a receipt photo, replacing the mock per-store data
+- `POST /api/recipes/parse` — real AI ingredient parsing, replacing the mock line parser
+
+Full REST API for items, categories (with rename-cascade / delete-while-unused-only), recipes, grocery, and receipts; the cook-recipe matching/reconciliation logic (ambiguous-match detection, volume-unit flagging, shortfall-to-grocery) was ported over from the prototype's JS. Verified against a live server: CRUD across all five resources, cook-and-deduct, category rename cascade, and the AI endpoints failing gracefully (502, server stays up) when no `ANTHROPIC_API_KEY` is configured.
+
+**Not done yet:** the `pantry.html` prototype is not wired to this backend — it still runs entirely against `localStorage`. That's the next step: replace the prototype's local state calls with `fetch`s against these endpoints, and swap its simulated OCR/parsing for real calls to `/api/receipts/parse-image` and `/api/recipes/parse`. See `server/README.md` for the endpoint list and setup (needs a user-supplied `ANTHROPIC_API_KEY` in `server/.env`).
+
 *Doc is ready to drive continued prototype iteration and, eventually, the real build.*
