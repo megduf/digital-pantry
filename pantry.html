@@ -1,0 +1,845 @@
+<title>The Pantry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --paper: #efeae0;
+    --paper-deep: #e3dcc9;
+    --surface: #fbf8f1;
+    --ink: #1f2a1d;
+    --ink-soft: #5b6355;
+    --ink-faint: #8b9280;
+    --accent: #4a6b3e;
+    --accent-deep: #35502c;
+    --accent-soft: #e1ebda;
+    --mustard: #a8701f;
+    --mustard-soft: #f3e4c4;
+    --berry: #9c3b3b;
+    --berry-soft: #f3dad7;
+    --line: #d8cfb8;
+    --shadow: 0 1px 2px rgba(31, 42, 29, 0.06), 0 4px 14px rgba(31, 42, 29, 0.07);
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1b211a;
+      --paper-deep: #242b21;
+      --surface: #20261e;
+      --ink: #ede7d9;
+      --ink-soft: #a9ae9c;
+      --ink-faint: #6f7566;
+      --accent: #7fa86a;
+      --accent-deep: #9cc084;
+      --accent-soft: #2c3a26;
+      --mustard: #e0a94b;
+      --mustard-soft: #3a2f1a;
+      --berry: #d97361;
+      --berry-soft: #3a211d;
+      --line: #3a4234;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1b211a; --paper-deep: #242b21; --surface: #20261e; --ink: #ede7d9;
+    --ink-soft: #a9ae9c; --ink-faint: #6f7566; --accent: #7fa86a; --accent-deep: #9cc084;
+    --accent-soft: #2c3a26; --mustard: #e0a94b; --mustard-soft: #3a2f1a; --berry: #d97361;
+    --berry-soft: #3a211d; --line: #3a4234; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+  }
+  :root[data-theme="light"] {
+    --paper: #efeae0; --paper-deep: #e3dcc9; --surface: #fbf8f1; --ink: #1f2a1d;
+    --ink-soft: #5b6355; --ink-faint: #8b9280; --accent: #4a6b3e; --accent-deep: #35502c;
+    --accent-soft: #e1ebda; --mustard: #a8701f; --mustard-soft: #f3e4c4; --berry: #9c3b3b;
+    --berry-soft: #f3dad7; --line: #d8cfb8; --shadow: 0 1px 2px rgba(31,42,29,.06), 0 4px 14px rgba(31,42,29,.07);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  button { cursor: pointer; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 600; text-wrap: balance; margin: 0; }
+
+  .app { max-width: 720px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  .header { padding: 22px 20px 0; }
+  .wordmark { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .wordmark h1 { font-size: 26px; letter-spacing: 0.02em; }
+  .wordmark .tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-faint); }
+
+  .tabs { display: flex; gap: 4px; margin-top: 18px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tab {
+    background: none; border: none; padding: 10px 14px 12px; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint);
+    border-bottom: 2px solid transparent; white-space: nowrap; transition: color .15s;
+  }
+  .tab:hover { color: var(--ink-soft); }
+  .tab[aria-selected="true"] { color: var(--accent-deep); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab .count { font-variant-numeric: tabular-nums; color: inherit; opacity: .7; margin-left: 3px; }
+
+  main { flex: 1; padding: 20px; padding-bottom: 60px; }
+  .panel { display: none; }
+  .panel.active { display: block; animation: fade .18s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .panel.active, * { animation: none !important; transition: none !important; } }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 3px; border: 1px solid var(--line);
+    background: var(--surface); padding: 8px 14px; font-size: 13.5px; font-weight: 600; color: var(--ink);
+    transition: border-color .15s, background .15s;
+  }
+  .btn:hover { border-color: var(--ink-faint); }
+  .btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+  .btn-ghost { background: none; border-color: transparent; padding: 6px 8px; }
+  .btn-ghost:hover { background: var(--paper-deep); border-color: transparent; }
+  .btn-danger { color: var(--berry); }
+  .btn-sm { padding: 5px 10px; font-size: 12.5px; }
+  .btn-block { width: 100%; justify-content: center; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Search */
+  .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .search-row input[type="search"] {
+    flex: 1; border: 1px solid var(--line); background: var(--surface); border-radius: 3px;
+    padding: 9px 12px; color: var(--ink);
+  }
+  .search-row input[type="search"]::placeholder { color: var(--ink-faint); }
+
+  /* Category accordion */
+  .category { margin-bottom: 10px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: var(--surface); }
+  .category-head {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; background: var(--paper-deep);
+    border: none; padding: 10px 14px; text-align: left;
+  }
+  .category-head .name { font-family: var(--font-display); font-size: 15px; font-weight: 600; }
+  .category-head .meta { font-size: 12px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .category-body { display: none; }
+  .category.open .category-body { display: block; }
+  .category-head .chev { transition: transform .15s; color: var(--ink-faint); }
+  .category.open .category-head .chev { transform: rotate(90deg); }
+
+  .item-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .item-row .name { flex: 1; font-weight: 600; font-size: 14px; }
+  .item-row .qty { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .item-row .badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); border: 1px solid var(--line); border-radius: 2px; padding: 1px 5px; }
+
+  .empty-state { text-align: center; padding: 46px 20px; color: var(--ink-soft); }
+  .empty-state h3 { margin-bottom: 6px; }
+  .empty-state p { max-width: 38ch; margin: 0 auto 16px; color: var(--ink-faint); font-size: 13.5px; }
+
+  /* Cards (recipes / grocery / receipts) */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 14px; margin-bottom: 10px; }
+  .card-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .card-sub { font-size: 12.5px; color: var(--ink-faint); }
+
+  .grocery-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+  .grocery-row:last-child { border-bottom: none; }
+  .grocery-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+  .grocery-row .label { flex: 1; }
+  .grocery-row .label .name { font-weight: 600; }
+  .grocery-row .label .note { display: block; font-size: 12px; color: var(--ink-faint); margin-top: 1px; }
+  .grocery-row.checked .name { text-decoration: line-through; color: var(--ink-faint); }
+  .pill { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; padding: 2px 6px; border-radius: 2px; }
+  .pill-auto { background: var(--mustard-soft); color: var(--mustard); }
+  .pill-manual { background: var(--accent-soft); color: var(--accent-deep); }
+
+  section.block { margin-bottom: 26px; }
+  section.block h2 { font-size: 18px; margin-bottom: 10px; }
+
+  form-field, .field { display: block; margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); margin-bottom: 5px; }
+  .field input, .field select, .field textarea {
+    width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 3px; padding: 9px 11px;
+  }
+  .field textarea { resize: vertical; min-height: 90px; font-family: var(--font-body); }
+  .field-row { display: flex; gap: 10px; }
+  .field-row > .field { flex: 1; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(20, 24, 17, 0.5); display: none; align-items: flex-end;
+    justify-content: center; z-index: 40; padding: 0;
+  }
+  .modal-overlay.open { display: flex; }
+  @media (min-width: 620px) { .modal-overlay { align-items: center; padding: 20px; } }
+  .modal {
+    background: var(--paper); width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto;
+    border-radius: 8px 8px 0 0; box-shadow: var(--shadow); border: 1px solid var(--line); border-bottom: none;
+  }
+  @media (min-width: 620px) { .modal { border-radius: 8px; border-bottom: 1px solid var(--line); } }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--paper); }
+  .modal-head h2 { font-size: 17px; }
+  .modal-body { padding: 18px; }
+  .modal-foot { padding: 14px 18px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; position: sticky; bottom: 0; background: var(--paper); }
+
+  .check-line { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 4px; margin-bottom: 8px; background: var(--surface); }
+  .check-line.excluded { opacity: 0.5; }
+  .check-line input[type="checkbox"] { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+  .check-line .raw { font-size: 11.5px; color: var(--ink-faint); margin-bottom: 6px; font-family: ui-monospace, Consolas, monospace; }
+  .check-line .grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; }
+  .check-line .grid input, .check-line .grid select { padding: 6px 8px; font-size: 13px; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); }
+  .check-line .flags { margin-top: 6px; display: flex; gap: 10px; align-items: center; }
+  .check-line .flags a, .check-line .flags button.link { font-size: 12px; color: var(--berry); background: none; border: none; text-decoration: underline; padding: 0; }
+  .flag-note { background: var(--mustard-soft); color: var(--mustard); border-radius: 3px; padding: 6px 9px; font-size: 12px; margin-top: 8px; }
+
+  .starter-cat { margin-bottom: 18px; }
+  .starter-cat h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint); margin-bottom: 8px; }
+  .starter-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .starter-chip {
+    display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface);
+    border-radius: 20px; padding: 6px 12px 6px 10px; font-size: 13px;
+  }
+  .starter-chip input { accent-color: var(--accent); }
+  .starter-chip.picked { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-deep); font-weight: 600; }
+
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper);
+    padding: 10px 18px; border-radius: 5px; font-size: 13.5px; box-shadow: var(--shadow); z-index: 60; opacity: 0;
+    pointer-events: none; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  .result-group { margin-bottom: 14px; }
+  .result-group h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .result-group.subtracted h4 { color: var(--accent-deep); }
+  .result-group.added h4 { color: var(--mustard); }
+  .result-group.reconcile h4 { color: var(--berry); }
+  .result-item { font-size: 13.5px; padding: 6px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+  .result-item:last-child { border-bottom: none; }
+  .reconcile-actions { display: flex; gap: 6px; margin-top: 4px; }
+
+  .divider-note { font-size: 12px; color: var(--ink-faint); margin: 10px 0 16px; }
+  .link-btn { background: none; border: none; color: var(--accent-deep); font-weight: 600; padding: 0; text-decoration: underline; font-size: inherit; }
+  .stat-row { display: flex; gap: 10px; margin-bottom: 18px; }
+  .stat { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; }
+  .stat .n { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
+
+  .receipt-store-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .store-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 12px 16px; text-align: left; flex: 1 1 140px; }
+  .store-btn:hover { border-color: var(--accent); }
+  .store-btn .s-name { font-weight: 600; display: block; }
+  .store-btn .s-sub { font-size: 11.5px; color: var(--ink-faint); }
+</style>
+
+<div class="app">
+  <div class="header">
+    <div class="wordmark">
+      <h1>The Pantry</h1>
+      <span class="tag">Prototype</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="pantry" aria-selected="true">Pantry</button>
+      <button class="tab" role="tab" data-tab="grocery">Grocery <span class="count" id="groceryCount"></span></button>
+      <button class="tab" role="tab" data-tab="recipes">Recipes</button>
+      <button class="tab" role="tab" data-tab="receipts">Receipts</button>
+    </nav>
+  </div>
+
+  <main>
+    <!-- PANTRY -->
+    <section class="panel active" id="panel-pantry">
+      <div class="search-row">
+        <input type="search" id="pantrySearch" placeholder="Search pantry…" />
+        <button class="btn btn-primary" id="btnAddItem">+ Add item</button>
+      </div>
+      <div id="pantryList"></div>
+    </section>
+
+    <!-- GROCERY -->
+    <section class="panel" id="panel-grocery">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="field-row" style="margin-bottom:0;">
+          <div class="field" style="margin-bottom:0;">
+            <input type="text" id="groceryManualInput" placeholder="Add item to grocery list…" />
+          </div>
+          <button class="btn btn-primary" id="btnGroceryAdd">Add</button>
+        </div>
+      </div>
+      <div id="groceryList"></div>
+    </section>
+
+    <!-- RECIPES -->
+    <section class="panel" id="panel-recipes">
+      <div class="btn-row" style="margin-bottom:16px;">
+        <button class="btn btn-primary" id="btnNewRecipe">+ New recipe</button>
+      </div>
+      <div id="recipeList"></div>
+    </section>
+
+    <!-- RECEIPTS -->
+    <section class="panel" id="panel-receipts">
+      <h2 style="font-size:16px;margin-bottom:6px;">Scan a receipt</h2>
+      <p class="divider-note">Phase 1 covers Trader Joe's and Safeway parsing. Pick a store to simulate a scan, or add receipt items by hand.</p>
+      <div class="receipt-store-picker">
+        <button class="store-btn" data-store="Trader Joe's"><span class="s-name">Trader Joe's</span><span class="s-sub">Simulate photo scan</span></button>
+        <button class="store-btn" data-store="Safeway"><span class="s-name">Safeway</span><span class="s-sub">Simulate photo scan</span></button>
+      </div>
+      <button class="btn btn-block" id="btnManualReceipt">+ Add receipt item manually</button>
+      <div class="divider-note">Farmers Market and other receipts: use manual entry — no OCR format for those yet.</div>
+      <h2 style="font-size:16px;margin:22px 0 8px;">Past receipts</h2>
+      <div id="receiptHistory"></div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="modalRoot"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CATEGORIES = ["Vegetables","Fruits","Starches","Meat & Poultry","Seafood","Dairy & Eggs","Pantry Staples","Frozen","Beverages","Snacks","Household / Non-Food"];
+
+  var STARTER_LIST = {
+    "Vegetables": ["Onions","Garlic","Potatoes","Carrots","Bell Peppers","Tomatoes","Leafy Greens","Broccoli"],
+    "Fruits": ["Bananas","Apples","Lemons","Limes","Avocados"],
+    "Starches": ["Rice","Pasta","Bread","Tortillas"],
+    "Meat & Poultry": ["Chicken Breast","Ground Beef","Bacon"],
+    "Seafood": ["Salmon","Shrimp"],
+    "Dairy & Eggs": ["Milk","Eggs","Butter","Cheese","Yogurt"],
+    "Pantry Staples": ["Olive Oil","Vegetable Oil","Salt","Black Pepper","Sugar","Flour","Canned Tomatoes","Canned Beans","Soy Sauce","Vinegar","Peanut Butter","Honey"],
+    "Frozen": ["Frozen Vegetables","Frozen Fruit","Ice Cream"],
+    "Beverages": ["Coffee","Tea","Juice","Water"],
+    "Snacks": ["Chips","Crackers","Nuts"],
+    "Household / Non-Food": ["Paper Towels","Toilet Paper","Dish Soap","Trash Bags"]
+  };
+
+  var MOCK_RECEIPTS = {
+    "Trader Joe's": [
+      { raw: "TJ ORG BANANAS", name: "Bananas", category: "Fruits", qty: 1, unit: "count" },
+      { raw: "WHIPPING CREAM PT", name: "Whipping Cream", category: "Dairy & Eggs", qty: 1, unit: "count" },
+      { raw: "4536 CIN THINS", name: "SKU 4536 — unknown item", category: "Snacks", qty: 1, unit: "count", cryptic: true },
+      { raw: "UNSALTED BUTTER", name: "Butter", category: "Dairy & Eggs", qty: 2, unit: "count" },
+      { raw: "ORG EGGS LG DZ", name: "Eggs", category: "Dairy & Eggs", qty: 1, unit: "count" },
+      { raw: "ORG BABY SPINACH", name: "Leafy Greens", category: "Vegetables", qty: 1, unit: "count" },
+      { raw: "SUBTOTAL", notItem: true },
+      { raw: "TAX", notItem: true }
+    ],
+    "Safeway": [
+      { raw: "SFY 2% MILK GAL", name: "2% Milk", category: "Dairy & Eggs", qty: 1, unit: "count" },
+      { raw: "CHKN BRST BNLS", name: "Chicken Breast", category: "Meat & Poultry", qty: 1.4, unit: "lb", weight: true },
+      { raw: "RUSSET POTATO 5LB", name: "Potatoes", category: "Vegetables", qty: 5, unit: "lb", weight: true },
+      { raw: "KLNX PAPER TWL", name: "Paper Towels", category: "Household / Non-Food", qty: 1, unit: "count" },
+      { raw: "CLUB CARD SAVINGS", notItem: true },
+      { raw: "BALANCE DUE", notItem: true }
+    ]
+  };
+
+  var VOLUME_UNITS = ["cup","cups","tbsp","tablespoon","tablespoons","tsp","teaspoon","teaspoons","ml","l","liter","liters"];
+  var WEIGHT_UNITS = ["oz","ounce","ounces","lb","lbs","pound","pounds","g","gram","grams","kg"];
+
+  var STORAGE_KEY = "digitalPantry_v1";
+  var state = load();
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { items: [], recipes: [], grocery: [], receipts: [], setupDone: false, openCats: {} };
+  }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function nowIso() { return new Date().toISOString(); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]; }); }
+  function titleCase(s) { return s.replace(/\w\S*/g, function (t) { return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(); }); }
+  function normName(s) { return String(s || "").toLowerCase().trim().replace(/s$/, ""); }
+
+  function toast(msg) {
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.classList.remove("show"); }, 2200);
+  }
+
+  // ---------- Tabs ----------
+  document.querySelectorAll(".tab").forEach(function (btn) {
+    btn.addEventListener("click", function () { showTab(btn.getAttribute("data-tab")); });
+  });
+  function showTab(name) {
+    document.querySelectorAll(".tab").forEach(function (b) { b.setAttribute("aria-selected", b.getAttribute("data-tab") === name ? "true" : "false"); });
+    document.querySelectorAll(".panel").forEach(function (p) { p.classList.toggle("active", p.id === "panel-" + name); });
+  }
+
+  // ---------- Modal helper ----------
+  function openModal(html, opts) {
+    var root = document.getElementById("modalRoot");
+    var overlay = document.createElement("div");
+    overlay.className = "modal-overlay open";
+    overlay.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' + html + "</div>";
+    root.appendChild(overlay);
+    overlay.addEventListener("mousedown", function (e) { if (e.target === overlay && !(opts && opts.persistent)) closeModal(overlay); });
+    document.addEventListener("keydown", function esc2(e) { if (e.key === "Escape") { closeModal(overlay); document.removeEventListener("keydown", esc2); } });
+    return overlay;
+  }
+  function closeModal(overlay) { overlay.classList.remove("open"); setTimeout(function () { overlay.remove(); }, 120); }
+
+  // ================= PANTRY =================
+  function findPantryMatch(name) {
+    var n = normName(name);
+    var found = null;
+    state.items.forEach(function (it) {
+      if (found) return;
+      var itn = normName(it.name);
+      if (itn === n || itn.indexOf(n) !== -1 || n.indexOf(itn) !== -1) found = it;
+    });
+    return found;
+  }
+
+  function addOrIncrementPantryItem(data) {
+    var existing = state.items.find(function (it) { return normName(it.name) === normName(data.name) && it.category === data.category; });
+    if (existing) {
+      existing.quantity_value = round2((existing.quantity_value || 0) + (data.quantity_value || 0));
+      existing.last_updated = nowIso();
+      return existing;
+    }
+    var item = {
+      id: uid(), name: data.name, category: data.category,
+      quantity_type: data.quantity_type || "count",
+      quantity_value: data.quantity_value != null ? data.quantity_value : 1,
+      weight_unit: data.weight_unit || null,
+      source: data.source || "manual",
+      raw_label: data.raw_label || null,
+      last_updated: nowIso()
+    };
+    state.items.push(item);
+    return item;
+  }
+  function round2(n) { return Math.round(n * 100) / 100; }
+
+  function renderPantry() {
+    var q = (document.getElementById("pantrySearch").value || "").toLowerCase().trim();
+    var list = document.getElementById("pantryList");
+    var items = state.items.filter(function (it) { return !q || it.name.toLowerCase().indexOf(q) !== -1; });
+
+    if (state.items.length === 0) {
+      list.innerHTML =
+        '<div class="empty-state"><h3>Your pantry is empty</h3>' +
+        "<p>Start from the common-items checklist to bulk-add what you already have, or add items one at a time.</p>" +
+        '<button class="btn btn-primary" id="btnStarter">Use starter checklist</button></div>';
+      document.getElementById("btnStarter").addEventListener("click", openStarterChecklist);
+      return;
+    }
+    if (items.length === 0) {
+      list.innerHTML = '<div class="empty-state"><p>No items match “' + esc(q) + '”.</p></div>';
+      return;
+    }
+
+    var byCat = {};
+    items.forEach(function (it) { (byCat[it.category] = byCat[it.category] || []).push(it); });
+    var cats = CATEGORIES.filter(function (c) { return byCat[c]; });
+    Object.keys(byCat).forEach(function (c) { if (cats.indexOf(c) === -1) cats.push(c); });
+
+    list.innerHTML = cats.map(function (cat) {
+      var catItems = byCat[cat].sort(function (a, b) { return a.name.localeCompare(b.name); });
+      var open = q ? true : !!state.openCats[cat];
+      var rows = catItems.map(function (it) {
+        var qtyLabel = it.quantity_type === "weight" ? round2(it.quantity_value) + " " + (it.weight_unit || "lb") : (it.quantity_value === 1 ? "1 ct" : round2(it.quantity_value) + " ct");
+        if (it.quantity_value === 0) qtyLabel = "out";
+        return '<div class="item-row">' +
+          '<span class="name">' + esc(it.name) + "</span>" +
+          '<span class="qty">' + esc(qtyLabel) + "</span>" +
+          '<button class="btn btn-ghost btn-sm" data-edit="' + it.id + '">Edit</button>' +
+          "</div>";
+      }).join("");
+      return '<div class="category' + (open ? " open" : "") + '" data-cat="' + esc(cat) + '">' +
+        '<button class="category-head" data-toggle="' + esc(cat) + '"><span class="name">' + esc(cat) + '</span>' +
+        '<span class="meta">' + catItems.length + ' item' + (catItems.length === 1 ? "" : "s") + ' <span class="chev">›</span></span></button>' +
+        '<div class="category-body">' + rows + "</div></div>";
+    }).join("");
+
+    list.querySelectorAll("[data-toggle]").forEach(function (h) {
+      h.addEventListener("click", function () {
+        var cat = h.getAttribute("data-toggle");
+        state.openCats[cat] = !state.openCats[cat];
+        save(); renderPantry();
+      });
+    });
+    list.querySelectorAll("[data-edit]").forEach(function (b) {
+      b.addEventListener("click", function () { openEditItem(b.getAttribute("data-edit")); });
+    });
+  }
+  document.getElementById("pantrySearch").addEventListener("input", renderPantry);
+
+  function categoryOptions(selected) {
+    return CATEGORIES.map(function (c) { return '<option value="' + esc(c) + '"' + (c === selected ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("");
+  }
+
+  document.getElementById("btnAddItem").addEventListener("click", function () { openItemForm(); });
+
+  function openItemForm(existing) {
+    var isEdit = !!existing;
+    var html =
+      '<div class="modal-head"><h2>' + (isEdit ? "Edit item" : "Add item") + '</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="field"><label for="fName">Name</label><input id="fName" type="text" value="' + (isEdit ? esc(existing.name) : "") + '" placeholder="e.g. 2% Milk" /></div>' +
+      '<div class="field"><label for="fCat">Category</label><select id="fCat">' + categoryOptions(isEdit ? existing.category : CATEGORIES[0]) + "</select></div>" +
+      '<div class="field-row">' +
+      '<div class="field"><label for="fType">Tracked by</label><select id="fType"><option value="count"' + (isEdit && existing.quantity_type === "count" ? " selected" : "") + '>Count</option><option value="weight"' + (isEdit && existing.quantity_type === "weight" ? " selected" : "") + ">Weight</option></select></div>" +
+      '<div class="field"><label for="fQty">Quantity</label><input id="fQty" type="number" min="0" step="0.1" value="' + (isEdit ? existing.quantity_value : 1) + '" /></div>' +
+      '<div class="field" id="fUnitWrap" style="max-width:110px;"><label for="fUnit">Unit</label><select id="fUnit"><option value="lb">lb</option><option value="oz">oz</option><option value="kg">kg</option><option value="g">g</option></select></div>' +
+      "</div></div>" +
+      '<div class="modal-foot">' +
+      (isEdit ? '<button class="btn btn-danger" data-out>Mark as out</button>' : "") +
+      '<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>' + (isEdit ? "Save" : "Add to pantry") + "</button></div>";
+    var ov = openModal(html);
+    var $ = function (s) { return ov.querySelector(s); };
+    if (isEdit && existing.quantity_type === "weight") $("#fUnit").value = existing.weight_unit || "lb";
+    function syncUnit() { $("#fUnitWrap").style.display = $("#fType").value === "weight" ? "block" : "none"; }
+    $("#fType").addEventListener("change", syncUnit); syncUnit();
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    if (isEdit) $("[data-out]").addEventListener("click", function () {
+      state.items = state.items.filter(function (it) { return it.id !== existing.id; });
+      save(); renderPantry(); closeModal(ov); toast(existing.name + " marked as out");
+    });
+    $("[data-save]").addEventListener("click", function () {
+      var name = $("#fName").value.trim();
+      if (!name) { $("#fName").focus(); return; }
+      var data = {
+        name: titleCase(name), category: $("#fCat").value, quantity_type: $("#fType").value,
+        quantity_value: parseFloat($("#fQty").value) || 0, weight_unit: $("#fType").value === "weight" ? $("#fUnit").value : null
+      };
+      if (isEdit) {
+        Object.assign(existing, data); existing.last_updated = nowIso();
+        toast("Saved " + existing.name);
+      } else {
+        data.source = "manual";
+        addOrIncrementPantryItem(data);
+        toast("Added " + data.name + " to pantry");
+      }
+      save(); renderPantry(); closeModal(ov);
+    });
+  }
+  function openEditItem(id) { var it = state.items.find(function (x) { return x.id === id; }); if (it) openItemForm(it); }
+
+  // ---------- Starter checklist ----------
+  function openStarterChecklist() {
+    var picked = {};
+    var html =
+      '<div class="modal-head"><h2>Starter checklist</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<p class="divider-note">Tap what you already have. Add a quantity if you know it — otherwise it\'s just marked in stock.</p>' +
+      Object.keys(STARTER_LIST).map(function (cat) {
+        return '<div class="starter-cat"><h3>' + esc(cat) + '</h3><div class="starter-grid">' +
+          STARTER_LIST[cat].map(function (name) {
+            var id = "sc_" + cat.replace(/\W/g, "") + "_" + name.replace(/\W/g, "");
+            return '<label class="starter-chip" data-id="' + id + '"><input type="checkbox" data-name="' + esc(name) + '" data-cat="' + esc(cat) + '" />' + esc(name) + "</label>";
+          }).join("") + "</div></div>";
+      }).join("") +
+      "</div>" +
+      '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Add checked items</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll(".starter-chip input").forEach(function (cb) {
+      cb.addEventListener("change", function () { cb.closest(".starter-chip").classList.toggle("picked", cb.checked); });
+    });
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelector("[data-save]").addEventListener("click", function () {
+      var added = 0;
+      ov.querySelectorAll(".starter-chip input:checked").forEach(function (cb) {
+        addOrIncrementPantryItem({ name: cb.getAttribute("data-name"), category: cb.getAttribute("data-cat"), quantity_type: "count", quantity_value: 1, source: "common-item-checklist" });
+        added++;
+      });
+      state.setupDone = true; save(); renderPantry(); closeModal(ov);
+      toast(added ? "Added " + added + " item" + (added === 1 ? "" : "s") + " to pantry" : "No items selected");
+    });
+  }
+
+  // ================= GROCERY =================
+  function addOrIncrementGrocery(name, qty, unit, note, source) {
+    var existing = state.grocery.find(function (g) { return normName(g.name) === normName(name) && !g.checked; });
+    if (existing) { existing.quantity = round2((existing.quantity || 0) + (qty || 0)); if (note) existing.note = note; }
+    else state.grocery.push({ id: uid(), name: titleCase(name), quantity: qty || 1, unit: unit || "", note: note || "", source: source || "auto", checked: false });
+  }
+
+  function renderGrocery() {
+    var list = document.getElementById("groceryList");
+    var open = state.grocery.filter(function (g) { return !g.checked; });
+    var checked = state.grocery.filter(function (g) { return g.checked; });
+    document.getElementById("groceryCount").textContent = open.length ? "(" + open.length + ")" : "";
+    if (state.grocery.length === 0) {
+      list.innerHTML = '<div class="empty-state"><h3>Grocery list is empty</h3><p>Items show up here automatically when a recipe needs more than you have, or add your own above.</p></div>';
+      return;
+    }
+    function row(g) {
+      var qtyStr = g.quantity ? (g.quantity + (g.unit ? " " + g.unit : "")) : "";
+      return '<div class="grocery-row' + (g.checked ? " checked" : "") + '" data-id="' + g.id + '">' +
+        '<input type="checkbox" data-check="' + g.id + '" ' + (g.checked ? "checked" : "") + " />" +
+        '<span class="label"><span class="name">' + esc(g.name) + (qtyStr ? ' <span style="color:var(--ink-faint);font-weight:400;">— ' + esc(qtyStr) + "</span>" : "") + "</span>" +
+        (g.note ? '<span class="note">' + esc(g.note) + "</span>" : "") + "</span>" +
+        '<span class="pill ' + (g.source === "manual" ? "pill-manual" : "pill-auto") + '">' + (g.source === "manual" ? "manual" : "recipe") + "</span>" +
+        '<button class="btn btn-ghost btn-sm" data-remove="' + g.id + '">✕</button></div>';
+    }
+    list.innerHTML = '<div class="card">' + open.map(row).join("") + (open.length === 0 ? '<p class="divider-note" style="margin:6px 4px;">Nothing left to buy.</p>' : "") + "</div>" +
+      (checked.length ? '<div class="card">' + checked.map(row).join("") + "</div>" : "");
+    list.querySelectorAll("[data-check]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var g = state.grocery.find(function (x) { return x.id === cb.getAttribute("data-check"); });
+        g.checked = cb.checked; save(); renderGrocery();
+      });
+    });
+    list.querySelectorAll("[data-remove]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        state.grocery = state.grocery.filter(function (g) { return g.id !== b.getAttribute("data-remove"); });
+        save(); renderGrocery();
+      });
+    });
+  }
+  document.getElementById("btnGroceryAdd").addEventListener("click", function () {
+    var inp = document.getElementById("groceryManualInput");
+    var v = inp.value.trim();
+    if (!v) return;
+    state.grocery.push({ id: uid(), name: titleCase(v), quantity: 0, unit: "", note: "", source: "manual", checked: false });
+    inp.value = ""; save(); renderGrocery();
+  });
+  document.getElementById("groceryManualInput").addEventListener("keydown", function (e) { if (e.key === "Enter") document.getElementById("btnGroceryAdd").click(); });
+
+  // ================= RECIPES =================
+  function parseIngredientLine(line) {
+    line = line.trim().replace(/^[-*•]\s*/, "").replace(/^\d+\.\s*/, "");
+    if (!line) return null;
+    var m = line.match(/^([\d.\/]+(?:\s+[\d\/]+)?)\s*(cups?|tbsp|tablespoons?|tsp|teaspoons?|oz|ounces?|lbs?|pounds?|g|grams?|kg|cloves?|slices?|cans?)?\s+(?:of\s+)?(.+)$/i);
+    var quantity = 1, unit = "", name;
+    if (m) {
+      quantity = parseFraction(m[1]) || 1;
+      unit = (m[2] || "").toLowerCase().replace(/s$/, "");
+      name = m[3];
+    } else name = line;
+    name = titleCase(name.replace(/[,.]$/, "").trim());
+    return { name: name, quantity: round2(quantity), unit: unit };
+  }
+  function parseFraction(s) {
+    s = s.trim();
+    if (s.indexOf("/") !== -1) {
+      var parts = s.split(/\s+/);
+      var total = 0;
+      parts.forEach(function (p) { if (p.indexOf("/") !== -1) { var f = p.split("/"); total += parseFloat(f[0]) / parseFloat(f[1]); } else total += parseFloat(p); });
+      return total;
+    }
+    return parseFloat(s);
+  }
+
+  function renderRecipes() {
+    var list = document.getElementById("recipeList");
+    if (state.recipes.length === 0) {
+      list.innerHTML = '<div class="empty-state"><h3>No recipes yet</h3><p>Paste one in from a doc — ingredients get parsed automatically for you to check.</p></div>';
+      return;
+    }
+    list.innerHTML = state.recipes.map(function (r) {
+      return '<div class="card" data-recipe="' + r.id + '">' +
+        '<div class="card-title">' + esc(r.name) + "</div>" +
+        '<div class="card-sub">' + r.ingredients.length + " ingredient" + (r.ingredients.length === 1 ? "" : "s") + "</div>" +
+        '<div class="btn-row" style="margin-top:10px;">' +
+        '<button class="btn btn-primary btn-sm" data-cook="' + r.id + '">Mark as cooked</button>' +
+        '<button class="btn btn-sm" data-view="' + r.id + '">View</button>' +
+        '<button class="btn btn-ghost btn-sm btn-danger" data-del="' + r.id + '">Delete</button>' +
+        "</div></div>";
+    }).join("");
+    list.querySelectorAll("[data-cook]").forEach(function (b) { b.addEventListener("click", function () { cookRecipe(b.getAttribute("data-cook")); }); });
+    list.querySelectorAll("[data-view]").forEach(function (b) { b.addEventListener("click", function () { viewRecipe(b.getAttribute("data-view")); }); });
+    list.querySelectorAll("[data-del]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        state.recipes = state.recipes.filter(function (r) { return r.id !== b.getAttribute("data-del"); });
+        save(); renderRecipes();
+      });
+    });
+  }
+
+  function viewRecipe(id) {
+    var r = state.recipes.find(function (x) { return x.id === id; });
+    var html = '<div class="modal-head"><h2>' + esc(r.name) + '</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' + r.ingredients.map(function (i) { return '<div class="result-item"><span>' + esc(i.name) + "</span><span>" + esc(i.quantity + (i.unit ? " " + i.unit : "")) + "</span></div>"; }).join("") + "</div>" +
+      '<div class="modal-foot"><button class="btn" data-close>Close</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+  }
+
+  document.getElementById("btnNewRecipe").addEventListener("click", function () {
+    var html = '<div class="modal-head"><h2>New recipe</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="field"><label for="rName">Recipe name</label><input id="rName" type="text" placeholder="e.g. Weeknight Pasta Bake" /></div>' +
+      '<div class="field"><label for="rText">Paste ingredients (one per line)</label><textarea id="rText" placeholder="2 cups rice\n1 lb chicken breast\n3 cloves garlic\nSalt"></textarea></div>' +
+      "</div>" +
+      '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-parse>Parse ingredients →</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelector("[data-parse]").addEventListener("click", function () {
+      var name = ov.querySelector("#rName").value.trim() || "Untitled recipe";
+      var text = ov.querySelector("#rText").value;
+      var lines = text.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+      var parsed = lines.map(parseIngredientLine).filter(Boolean);
+      closeModal(ov);
+      openRecipeReview(name, text, parsed);
+    });
+  });
+
+  function openRecipeReview(name, rawText, parsed) {
+    var html = '<div class="modal-head"><h2>Review ingredients</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body"><p class="divider-note">Auto-parsed from your paste — simulated here, an AI model does this in the real app. Fix anything that\'s off.</p>' +
+      parsed.map(function (ing, i) {
+        return '<div class="check-line" data-i="' + i + '"><input type="checkbox" checked data-inc />' +
+          '<div style="flex:1;"><div class="grid">' +
+          '<input type="text" value="' + esc(ing.name) + '" data-f="name" />' +
+          '<input type="number" step="0.1" value="' + ing.quantity + '" data-f="quantity" />' +
+          '<input type="text" value="' + esc(ing.unit) + '" placeholder="unit" data-f="unit" />' +
+          "</div></div></div>";
+      }).join("") + "</div>" +
+      '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save recipe</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelector("[data-save]").addEventListener("click", function () {
+      var ingredients = [];
+      ov.querySelectorAll(".check-line").forEach(function (line) {
+        if (!line.querySelector("[data-inc]").checked) return;
+        ingredients.push({
+          name: line.querySelector('[data-f="name"]').value.trim(),
+          quantity: parseFloat(line.querySelector('[data-f="quantity"]').value) || 1,
+          unit: line.querySelector('[data-f="unit"]').value.trim().toLowerCase()
+        });
+      });
+      state.recipes.push({ id: uid(), name: name, raw_text: rawText, ingredients: ingredients, review_status: "confirmed" });
+      save(); renderRecipes(); closeModal(ov); toast("Saved " + name);
+    });
+  }
+
+  function cookRecipe(id) {
+    var r = state.recipes.find(function (x) { return x.id === id; });
+    var subtracted = [], added = [], reconcile = [];
+    r.ingredients.forEach(function (ing) {
+      if (VOLUME_UNITS.indexOf(ing.unit) !== -1) { reconcile.push(ing); return; }
+      var match = findPantryMatch(ing.name);
+      var needed = ing.quantity || 1;
+      if (match && match.quantity_value >= needed) {
+        match.quantity_value = round2(match.quantity_value - needed);
+        match.last_updated = nowIso();
+        subtracted.push({ name: match.name, amount: needed, unit: ing.unit });
+      } else if (match) {
+        var shortfall = round2(needed - match.quantity_value);
+        match.quantity_value = 0; match.last_updated = nowIso();
+        addOrIncrementGrocery(match.name, shortfall, ing.unit, "for " + r.name);
+        added.push({ name: match.name, amount: shortfall, unit: ing.unit });
+      } else {
+        addOrIncrementGrocery(ing.name, needed, ing.unit, "for " + r.name);
+        added.push({ name: ing.name, amount: needed, unit: ing.unit });
+      }
+    });
+    save(); renderPantry(); renderGrocery();
+    showCookResult(r.name, subtracted, added, reconcile);
+  }
+
+  function showCookResult(recipeName, subtracted, added, reconcile) {
+    function fmt(x) { return x.amount + (x.unit ? " " + x.unit : "") + " " + x.name; }
+    var body = "";
+    if (subtracted.length) body += '<div class="result-group subtracted"><h4>Subtracted from pantry</h4>' + subtracted.map(function (x) { return '<div class="result-item"><span>' + esc(x.name) + "</span><span>−" + esc(x.amount + (x.unit ? " " + x.unit : "")) + "</span></div>"; }).join("") + "</div>";
+    if (added.length) body += '<div class="result-group added"><h4>Added to grocery list</h4>' + added.map(function (x) { return '<div class="result-item"><span>' + esc(x.name) + "</span><span>+" + esc(x.amount + (x.unit ? " " + x.unit : "")) + "</span></div>"; }).join("") + "</div>";
+    if (reconcile.length) {
+      body += '<div class="result-group reconcile"><h4>Needs your input</h4>' +
+        reconcile.map(function (ing, i) {
+          return '<div class="result-item" style="flex-direction:column;align-items:stretch;" data-rec="' + i + '">' +
+            '<div style="display:flex;justify-content:space-between;"><span>' + esc(ing.quantity + " " + ing.unit + " " + ing.name) + '</span><span style="color:var(--ink-faint);">volume unit</span></div>' +
+            '<div class="reconcile-actions">' +
+            '<button class="btn btn-sm" data-resolve-grocery="' + esc(ing.name) + '" data-qty="' + ing.quantity + '" data-unit="' + esc(ing.unit) + '">Add to grocery list</button>' +
+            '<button class="btn btn-ghost btn-sm" data-resolve-skip>Skip</button></div></div>';
+        }).join("") + "</div>";
+    }
+    if (!body) body = '<p class="divider-note">No pantry matches found to update.</p>';
+    var html = '<div class="modal-head"><h2>' + esc(recipeName) + " cooked</h2><button class=\"btn btn-ghost\" data-close>✕</button></div>" +
+      '<div class="modal-body">' + body + "</div>" +
+      '<div class="modal-foot"><button class="btn btn-primary" data-close>Done</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelectorAll("[data-resolve-grocery]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        addOrIncrementGrocery(b.getAttribute("data-resolve-grocery"), parseFloat(b.getAttribute("data-qty")), b.getAttribute("data-unit"), "for " + recipeName);
+        save(); renderGrocery();
+        b.closest(".result-item").style.opacity = ".4";
+        b.parentElement.innerHTML = "Added to grocery list";
+        toast("Added to grocery list");
+      });
+    });
+    ov.querySelectorAll("[data-resolve-skip]").forEach(function (b) {
+      b.addEventListener("click", function () { b.closest(".result-item").style.opacity = ".4"; b.parentElement.innerHTML = "Skipped"; });
+    });
+  }
+
+  // ================= RECEIPTS =================
+  document.querySelectorAll(".store-btn").forEach(function (b) {
+    b.addEventListener("click", function () { openReceiptReview(b.getAttribute("data-store"), MOCK_RECEIPTS[b.getAttribute("data-store")]); });
+  });
+  document.getElementById("btnManualReceipt").addEventListener("click", function () { openItemForm(); });
+
+  function openReceiptReview(store, lines) {
+    var html = '<div class="modal-head"><h2>' + esc(store) + " — review</h2><button class=\"btn btn-ghost\" data-close>✕</button></div>" +
+      '<div class="modal-body"><p class="divider-note">Simulated scan result — a vision model reads the real receipt in the finished app. Uncheck lines that aren\'t items; fix names, categories, or quantities.</p>' +
+      lines.map(function (l, i) {
+        if (l.notItem) {
+          return '<div class="check-line excluded" data-i="' + i + '" data-notitem="1"><input type="checkbox" data-inc />' +
+            '<div style="flex:1;"><div class="raw">' + esc(l.raw) + '</div><div style="font-size:13px;color:var(--ink-faint);">Not an item</div></div></div>';
+        }
+        var flag = l.cryptic ? '<div class="flag-note">Cryptic SKU — couldn\'t confidently match a product. Substitute the real item below.</div>' : "";
+        return '<div class="check-line" data-i="' + i + '"><input type="checkbox" checked data-inc />' +
+          '<div style="flex:1;"><div class="raw">' + esc(l.raw) + '</div><div class="grid">' +
+          '<input type="text" value="' + esc(l.name) + '" data-f="name" />' +
+          '<input type="number" step="0.1" value="' + l.qty + '" data-f="qty" />' +
+          '<select data-f="cat">' + categoryOptions(l.category) + "</select></div>" + flag + "</div></div>";
+      }).join("") + "</div>" +
+      '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-confirm>Confirm & add to pantry</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelectorAll(".check-line:not([data-notitem]) [data-inc]").forEach(function (cb) {
+      cb.addEventListener("change", function () { cb.closest(".check-line").classList.toggle("excluded", !cb.checked); });
+    });
+    ov.querySelector("[data-confirm]").addEventListener("click", function () {
+      var count = 0;
+      ov.querySelectorAll(".check-line").forEach(function (line) {
+        if (line.getAttribute("data-notitem")) return;
+        if (!line.querySelector("[data-inc]").checked) return;
+        var name = line.querySelector('[data-f="name"]').value.trim();
+        var qty = parseFloat(line.querySelector('[data-f="qty"]').value) || 1;
+        var cat = line.querySelector('[data-f="cat"]').value;
+        var idx = parseInt(line.getAttribute("data-i"), 10);
+        var orig = lines[idx];
+        addOrIncrementPantryItem({
+          name: titleCase(name), category: cat,
+          quantity_type: orig.weight ? "weight" : "count",
+          quantity_value: qty, weight_unit: orig.weight ? "lb" : null,
+          source: "receipt", raw_label: orig.raw
+        });
+        count++;
+      });
+      state.receipts.push({ id: uid(), store: store, date: nowIso(), itemCount: count });
+      save(); renderPantry(); renderReceiptHistory(); closeModal(ov);
+      toast("Added " + count + " item" + (count === 1 ? "" : "s") + " from " + store);
+    });
+  }
+
+  function renderReceiptHistory() {
+    var el = document.getElementById("receiptHistory");
+    if (state.receipts.length === 0) { el.innerHTML = '<p class="divider-note">No receipts scanned yet.</p>'; return; }
+    el.innerHTML = state.receipts.slice().reverse().map(function (r) {
+      var d = new Date(r.date);
+      return '<div class="card"><div class="card-title" style="font-size:14px;">' + esc(r.store) + '</div><div class="card-sub">' + d.toLocaleDateString() + " · " + r.itemCount + " item" + (r.itemCount === 1 ? "" : "s") + " added</div></div>";
+    }).join("");
+  }
+
+  // ---------- init ----------
+  renderPantry(); renderGrocery(); renderRecipes(); renderReceiptHistory();
+  if (state.items.length === 0 && !state.setupDone) {
+    setTimeout(openStarterChecklist, 300);
+  }
+})();
+</script>
