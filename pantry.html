@@ -209,7 +209,10 @@
     padding: 10px 18px; border-radius: 5px; font-size: 13.5px; box-shadow: var(--shadow); z-index: 60; opacity: 0;
     pointer-events: none; transition: opacity .2s, transform .2s;
   }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); pointer-events: auto; }
+  .qty-stepper { display: flex; align-items: center; gap: 2px; }
+  .qty-stepper button { width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .qty-stepper .qty { min-width: 52px; text-align: center; }
 
   .result-group { margin-bottom: 14px; }
   .result-group h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
@@ -386,12 +389,22 @@
   function titleCase(s) { return s.replace(/\w\S*/g, function (t) { return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase(); }); }
   function normName(s) { return String(s || "").toLowerCase().trim().replace(/s$/, ""); }
 
-  function toast(msg) {
+  function toast(msg, actionLabel, actionFn) {
     var t = document.getElementById("toast");
-    t.textContent = msg;
+    t.innerHTML = "";
+    var span = document.createElement("span");
+    span.textContent = msg;
+    t.appendChild(span);
+    if (actionLabel && actionFn) {
+      var btn = document.createElement("button");
+      btn.textContent = actionLabel;
+      btn.style.cssText = "margin-left:12px;background:none;border:none;color:var(--accent-deep);font-weight:700;text-decoration:underline;cursor:pointer;padding:0;font-size:inherit;";
+      btn.addEventListener("click", function () { actionFn(); t.classList.remove("show"); });
+      t.appendChild(btn);
+    }
     t.classList.add("show");
     clearTimeout(toast._t);
-    toast._t = setTimeout(function () { t.classList.remove("show"); }, 2200);
+    toast._t = setTimeout(function () { t.classList.remove("show"); }, actionLabel ? 5000 : 2200);
   }
 
   // ---------- Tabs ----------
@@ -481,7 +494,11 @@
         if (it.quantity_value === 0) qtyLabel = "out";
         return '<div class="item-row">' +
           '<span class="name">' + esc(it.name) + "</span>" +
+          '<div class="qty-stepper">' +
+          '<button class="btn btn-ghost" data-step="-1" data-id="' + it.id + '" aria-label="Decrease">−</button>' +
           '<span class="qty">' + esc(qtyLabel) + "</span>" +
+          '<button class="btn btn-ghost" data-step="1" data-id="' + it.id + '" aria-label="Increase">+</button>' +
+          "</div>" +
           '<button class="btn btn-ghost btn-sm" data-edit="' + it.id + '">Edit</button>' +
           "</div>";
       }).join("");
@@ -500,6 +517,17 @@
     });
     list.querySelectorAll("[data-edit]").forEach(function (b) {
       b.addEventListener("click", function () { openEditItem(b.getAttribute("data-edit")); });
+    });
+    list.querySelectorAll("[data-step]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var it = state.items.find(function (x) { return x.id === b.getAttribute("data-id"); });
+        if (!it) return;
+        var delta = parseFloat(b.getAttribute("data-step"));
+        var stepSize = it.quantity_type === "weight" ? 0.5 : 1;
+        it.quantity_value = round2(Math.max(0, it.quantity_value + delta * stepSize));
+        it.last_updated = nowIso();
+        save(); renderPantry();
+      });
     });
   }
   document.getElementById("pantrySearch").addEventListener("input", renderPantry);
@@ -597,8 +625,13 @@
     $("#fType").addEventListener("change", syncUnit); syncUnit();
     ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
     if (isEdit) $("[data-out]").addEventListener("click", function () {
+      var idx = state.items.indexOf(existing);
       state.items = state.items.filter(function (it) { return it.id !== existing.id; });
-      save(); renderPantry(); closeModal(ov); toast(existing.name + " marked as out");
+      save(); renderPantry(); closeModal(ov);
+      toast(existing.name + " marked as out", "Undo", function () {
+        state.items.splice(Math.min(idx, state.items.length), 0, existing);
+        save(); renderPantry(); toast("Restored " + existing.name);
+      });
     });
     $("[data-save]").addEventListener("click", function () {
       var name = $("#fName").value.trim();
@@ -675,6 +708,7 @@
         '<span class="label"><span class="name">' + esc(g.name) + (qtyStr ? ' <span style="color:var(--ink-faint);font-weight:400;">— ' + esc(qtyStr) + "</span>" : "") + "</span>" +
         (g.note ? '<span class="note">' + esc(g.note) + "</span>" : "") + "</span>" +
         '<span class="pill ' + (g.source === "manual" ? "pill-manual" : "pill-auto") + '">' + (g.source === "manual" ? "manual" : "recipe") + "</span>" +
+        '<button class="btn btn-ghost btn-sm" data-edit-grocery="' + g.id + '">Edit</button>' +
         '<button class="btn btn-ghost btn-sm" data-remove="' + g.id + '">✕</button></div>';
     }
     list.innerHTML = '<div class="card">' + open.map(row).join("") + (open.length === 0 ? '<p class="divider-note" style="margin:6px 4px;">Nothing left to buy.</p>' : "") + "</div>" +
@@ -687,11 +721,46 @@
     });
     list.querySelectorAll("[data-remove]").forEach(function (b) {
       b.addEventListener("click", function () {
-        state.grocery = state.grocery.filter(function (g) { return g.id !== b.getAttribute("data-remove"); });
+        var id = b.getAttribute("data-remove");
+        var idx = state.grocery.findIndex(function (g) { return g.id === id; });
+        var removed = state.grocery[idx];
+        state.grocery = state.grocery.filter(function (g) { return g.id !== id; });
         save(); renderGrocery();
+        toast("Removed " + removed.name, "Undo", function () {
+          state.grocery.splice(Math.min(idx, state.grocery.length), 0, removed);
+          save(); renderGrocery(); toast("Restored " + removed.name);
+        });
+      });
+    });
+    list.querySelectorAll("[data-edit-grocery]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var g = state.grocery.find(function (x) { return x.id === b.getAttribute("data-edit-grocery"); });
+        if (g) openGroceryEdit(g);
       });
     });
   }
+
+  function openGroceryEdit(g) {
+    var html = '<div class="modal-head"><h2>Edit grocery item</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="field"><label for="gName">Name</label><input id="gName" type="text" value="' + esc(g.name) + '" /></div>' +
+      '<div class="field-row">' +
+      '<div class="field"><label for="gQty">Quantity</label><input id="gQty" type="number" min="0" step="0.1" value="' + (g.quantity || 0) + '" /></div>' +
+      '<div class="field"><label for="gUnit">Unit</label><input id="gUnit" type="text" value="' + esc(g.unit || "") + '" placeholder="optional" /></div>' +
+      "</div></div>" +
+      '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelector("[data-save]").addEventListener("click", function () {
+      var name = ov.querySelector("#gName").value.trim();
+      if (!name) return;
+      g.name = titleCase(name);
+      g.quantity = parseFloat(ov.querySelector("#gQty").value) || 0;
+      g.unit = ov.querySelector("#gUnit").value.trim();
+      save(); renderGrocery(); closeModal(ov); toast("Saved " + g.name);
+    });
+  }
+
   document.getElementById("btnGroceryAdd").addEventListener("click", function () {
     var inp = document.getElementById("groceryManualInput");
     var v = inp.value.trim();
@@ -739,15 +808,29 @@
         '<div class="btn-row" style="margin-top:10px;">' +
         '<button class="btn btn-primary btn-sm" data-cook="' + r.id + '">Mark as cooked</button>' +
         '<button class="btn btn-sm" data-view="' + r.id + '">View</button>' +
+        '<button class="btn btn-sm" data-edit-recipe="' + r.id + '">Edit</button>' +
         '<button class="btn btn-ghost btn-sm btn-danger" data-del="' + r.id + '">Delete</button>' +
         "</div></div>";
     }).join("");
     list.querySelectorAll("[data-cook]").forEach(function (b) { b.addEventListener("click", function () { cookRecipe(b.getAttribute("data-cook")); }); });
     list.querySelectorAll("[data-view]").forEach(function (b) { b.addEventListener("click", function () { viewRecipe(b.getAttribute("data-view")); }); });
+    list.querySelectorAll("[data-edit-recipe]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var r = state.recipes.find(function (x) { return x.id === b.getAttribute("data-edit-recipe"); });
+        if (r) openRecipeReview(r.name, r.raw_text, r.ingredients, r.id);
+      });
+    });
     list.querySelectorAll("[data-del]").forEach(function (b) {
       b.addEventListener("click", function () {
-        state.recipes = state.recipes.filter(function (r) { return r.id !== b.getAttribute("data-del"); });
+        var id = b.getAttribute("data-del");
+        var idx = state.recipes.findIndex(function (r) { return r.id === id; });
+        var removed = state.recipes[idx];
+        state.recipes = state.recipes.filter(function (r) { return r.id !== id; });
         save(); renderRecipes();
+        toast("Deleted " + removed.name, "Undo", function () {
+          state.recipes.splice(Math.min(idx, state.recipes.length), 0, removed);
+          save(); renderRecipes(); toast("Restored " + removed.name);
+        });
       });
     });
   }
@@ -780,32 +863,53 @@
     });
   });
 
-  function openRecipeReview(name, rawText, parsed) {
-    var html = '<div class="modal-head"><h2>Review ingredients</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
-      '<div class="modal-body"><p class="divider-note">Auto-parsed from your paste — simulated here, an AI model does this in the real app. Fix anything that\'s off.</p>' +
-      parsed.map(function (ing, i) {
-        return '<div class="check-line" data-i="' + i + '"><input type="checkbox" checked data-inc />' +
-          '<div style="flex:1;"><div class="grid">' +
-          '<input type="text" value="' + esc(ing.name) + '" data-f="name" />' +
-          '<input type="number" step="0.1" value="' + ing.quantity + '" data-f="quantity" />' +
-          '<input type="text" value="' + esc(ing.unit) + '" placeholder="unit" data-f="unit" />' +
-          "</div></div></div>";
-      }).join("") + "</div>" +
+  function ingredientLineHtml(ing, i) {
+    return '<div class="check-line" data-i="' + i + '"><input type="checkbox" checked data-inc />' +
+      '<div style="flex:1;"><div class="grid">' +
+      '<input type="text" value="' + esc(ing.name) + '" placeholder="ingredient" data-f="name" />' +
+      '<input type="number" step="0.1" value="' + ing.quantity + '" data-f="quantity" />' +
+      '<input type="text" value="' + esc(ing.unit || "") + '" placeholder="unit" data-f="unit" />' +
+      "</div></div></div>";
+  }
+
+  function openRecipeReview(name, rawText, parsed, existingId) {
+    var isEdit = !!existingId;
+    var html = '<div class="modal-head"><h2>' + (isEdit ? "Edit recipe" : "Review ingredients") + '</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="field"><label for="revName">Recipe name</label><input id="revName" type="text" value="' + esc(name) + '" /></div>' +
+      (isEdit ? "" : '<p class="divider-note">Auto-parsed from your paste — simulated here, an AI model does this in the real app. Fix anything that\'s off.</p>') +
+      '<div id="ingLines">' + parsed.map(ingredientLineHtml).join("") + "</div>" +
+      '<button class="btn btn-sm" type="button" id="btnAddIngLine">+ Add ingredient</button>' +
+      "</div>" +
       '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-save>Save recipe</button></div>';
     var ov = openModal(html);
     ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelector("#btnAddIngLine").addEventListener("click", function () {
+      var wrap = document.createElement("div");
+      var nextI = ov.querySelectorAll(".check-line").length;
+      wrap.innerHTML = ingredientLineHtml({ name: "", quantity: 1, unit: "" }, nextI);
+      ov.querySelector("#ingLines").appendChild(wrap.firstChild);
+    });
     ov.querySelector("[data-save]").addEventListener("click", function () {
+      var newName = ov.querySelector("#revName").value.trim() || name;
       var ingredients = [];
       ov.querySelectorAll(".check-line").forEach(function (line) {
         if (!line.querySelector("[data-inc]").checked) return;
+        var ingName = line.querySelector('[data-f="name"]').value.trim();
+        if (!ingName) return;
         ingredients.push({
-          name: line.querySelector('[data-f="name"]').value.trim(),
+          name: ingName,
           quantity: parseFloat(line.querySelector('[data-f="quantity"]').value) || 1,
           unit: line.querySelector('[data-f="unit"]').value.trim().toLowerCase()
         });
       });
-      state.recipes.push({ id: uid(), name: name, raw_text: rawText, ingredients: ingredients, review_status: "confirmed" });
-      save(); renderRecipes(); closeModal(ov); toast("Saved " + name);
+      if (isEdit) {
+        var r = state.recipes.find(function (x) { return x.id === existingId; });
+        r.name = newName; r.ingredients = ingredients;
+      } else {
+        state.recipes.push({ id: uid(), name: newName, raw_text: rawText, ingredients: ingredients, review_status: "confirmed" });
+      }
+      save(); renderRecipes(); closeModal(ov); toast("Saved " + newName);
     });
   }
 

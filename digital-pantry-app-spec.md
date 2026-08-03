@@ -179,6 +179,12 @@ Note: the first web-artifact prototype cannot make live AI calls (no such runtim
 - Category management (rename/add/delete) per §3.5 — renaming carries existing items along; delete is blocked while items still use the category
 - Local backup: export the full app state as JSON (via the artifact's `downloads` capability) and restore from a pasted backup, as a stand-in for the real cloud-sync layer in §3.6
 
+**Phase 3** (2026-08-02): usability hardening on the existing flows, no new feature surface —
+- Quick +/− quantity steppers on pantry rows (step 1 for count items, 0.5 for weight) so routine adjustments don't need the edit modal
+- Undo on every destructive action (mark item as out, delete recipe, remove grocery item) via a toast action, since none of these had a safety net before
+- Recipes are editable after saving — rename, edit/remove ingredient lines, or add a forgotten one — instead of only viewable or deletable
+- Grocery items are editable in place (name/quantity/unit), not just checkable or removable
+
 Still not buildable inside an Artifact and deferred to the real backed app: actual AI vision OCR, actual AI recipe parsing, native mobile, multi-user household sharing, real cloud sync.
 
 *Doc is ready to drive continued prototype iteration and, eventually, the real build.*
