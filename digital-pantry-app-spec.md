@@ -171,6 +171,14 @@ Note: the first web-artifact prototype cannot make live AI calls (no such runtim
 
 ## 8. Prototype
 
-Phase 1 clickable prototype published as a Claude Artifact — pantry inventory with category search, starter checklist, mock receipt-scan review (Trader Joe's / Safeway), recipe paste-and-parse with cook-and-deduct, and grocery list. OCR and ingredient parsing are simulated (no live AI calls available inside Artifacts); local storage persists state across visits.
+**Phase 1** (2026-08-02): clickable prototype published as a Claude Artifact — pantry inventory with category search, starter checklist, mock receipt-scan review (Trader Joe's / Safeway), recipe paste-and-parse with cook-and-deduct, and grocery list. OCR and ingredient parsing are simulated (no live AI calls available inside Artifacts); local storage persists state across visits.
+
+**Phase 2** (2026-08-02): built on top of Phase 1, still within the same Artifact/local-storage constraints —
+- Mock receipt-scan coverage extended to all 5 stores (added Costco, Ranch 99)
+- "Paste receipt text" flow, standing in for both PDF/email import and the Farmers Market manual fallback (§5 deferred items) until real OCR/email ingestion exists
+- Category management (rename/add/delete) per §3.5 — renaming carries existing items along; delete is blocked while items still use the category
+- Local backup: export the full app state as JSON (via the artifact's `downloads` capability) and restore from a pasted backup, as a stand-in for the real cloud-sync layer in §3.6
+
+Still not buildable inside an Artifact and deferred to the real backed app: actual AI vision OCR, actual AI recipe parsing, native mobile, multi-user household sharing, real cloud sync.
 
 *Doc is ready to drive continued prototype iteration and, eventually, the real build.*

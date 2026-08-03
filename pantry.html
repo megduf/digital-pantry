@@ -238,7 +238,7 @@
   <div class="header">
     <div class="wordmark">
       <h1>The Pantry</h1>
-      <span class="tag">Prototype</span>
+      <button class="btn btn-ghost btn-sm" id="btnBackup" style="color:var(--ink-faint);">Backup</button>
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="pantry" aria-selected="true">Pantry</button>
@@ -253,6 +253,7 @@
     <section class="panel active" id="panel-pantry">
       <div class="search-row">
         <input type="search" id="pantrySearch" placeholder="Search pantry…" />
+        <button class="btn" id="btnManageCats">Categories</button>
         <button class="btn btn-primary" id="btnAddItem">+ Add item</button>
       </div>
       <div id="pantryList"></div>
@@ -282,13 +283,15 @@
     <!-- RECEIPTS -->
     <section class="panel" id="panel-receipts">
       <h2 style="font-size:16px;margin-bottom:6px;">Scan a receipt</h2>
-      <p class="divider-note">Phase 1 covers Trader Joe's and Safeway parsing. Pick a store to simulate a scan, or add receipt items by hand.</p>
+      <p class="divider-note">All 5 store formats are covered now. Pick a store to simulate a photo scan, paste in text from a PDF/email/Farmers Market receipt, or add items by hand.</p>
       <div class="receipt-store-picker">
         <button class="store-btn" data-store="Trader Joe's"><span class="s-name">Trader Joe's</span><span class="s-sub">Simulate photo scan</span></button>
         <button class="store-btn" data-store="Safeway"><span class="s-name">Safeway</span><span class="s-sub">Simulate photo scan</span></button>
+        <button class="store-btn" data-store="Costco"><span class="s-name">Costco</span><span class="s-sub">Simulate photo scan</span></button>
+        <button class="store-btn" data-store="Ranch 99"><span class="s-name">Ranch 99</span><span class="s-sub">Simulate photo scan</span></button>
       </div>
+      <button class="btn btn-block" id="btnPasteReceipt" style="margin-bottom:8px;">+ Paste receipt text (PDF, email, or Farmers Market)</button>
       <button class="btn btn-block" id="btnManualReceipt">+ Add receipt item manually</button>
-      <div class="divider-note">Farmers Market and other receipts: use manual entry — no OCR format for those yet.</div>
       <h2 style="font-size:16px;margin:22px 0 8px;">Past receipts</h2>
       <div id="receiptHistory"></div>
     </section>
@@ -302,7 +305,7 @@
 (function () {
   "use strict";
 
-  var CATEGORIES = ["Vegetables","Fruits","Starches","Meat & Poultry","Seafood","Dairy & Eggs","Pantry Staples","Frozen","Beverages","Snacks","Household / Non-Food"];
+  var DEFAULT_CATEGORIES = ["Vegetables","Fruits","Starches","Meat & Poultry","Seafood","Dairy & Eggs","Pantry Staples","Frozen","Beverages","Snacks","Household / Non-Food"];
 
   var STARTER_LIST = {
     "Vegetables": ["Onions","Garlic","Potatoes","Carrots","Bell Peppers","Tomatoes","Leafy Greens","Broccoli"],
@@ -336,6 +339,26 @@
       { raw: "KLNX PAPER TWL", name: "Paper Towels", category: "Household / Non-Food", qty: 1, unit: "count" },
       { raw: "CLUB CARD SAVINGS", notItem: true },
       { raw: "BALANCE DUE", notItem: true }
+    ],
+    "Costco": [
+      { raw: "KS ORG EGGS 24CT", name: "Eggs", category: "Dairy & Eggs", qty: 1, unit: "count" },
+      { raw: "ROT CHICKEN", name: "Rotisserie Chicken", category: "Meat & Poultry", qty: 1, unit: "count" },
+      { raw: "KS OLIVE OIL 2L", name: "Olive Oil", category: "Pantry Staples", qty: 1, unit: "count" },
+      { raw: "BANANA 3LB", name: "Bananas", category: "Fruits", qty: 3, unit: "lb", weight: true },
+      { raw: "KS PAPER TOWEL 12PK", name: "Paper Towels", category: "Household / Non-Food", qty: 12, unit: "count" },
+      { raw: "E 84509 FRZ BERRY BLND", name: "Frozen Fruit", category: "Frozen", qty: 1, unit: "count" },
+      { raw: "TOTAL", notItem: true },
+      { raw: "MEMBER SAVINGS", notItem: true }
+    ],
+    "Ranch 99": [
+      { raw: "99 BOK CHOY", name: "Bok Choy", category: "Vegetables", qty: 1, unit: "count" },
+      { raw: "99 TOFU FIRM", name: "Tofu", category: "Pantry Staples", qty: 2, unit: "count" },
+      { raw: "CHAR SIU PORK", name: "Char Siu Pork", category: "Meat & Poultry", qty: 1, unit: "count" },
+      { raw: "JASMINE RICE 25LB", name: "Rice", category: "Starches", qty: 25, unit: "lb", weight: true },
+      { raw: "99 SOY SAUCE LOW SOD", name: "Soy Sauce", category: "Pantry Staples", qty: 1, unit: "count" },
+      { raw: "88301 6", name: "SKU 88301 — unknown item", category: "Snacks", qty: 1, unit: "count", cryptic: true },
+      { raw: "SUBTOTAL", notItem: true },
+      { raw: "TAX", notItem: true }
     ]
   };
 
@@ -348,9 +371,13 @@
   function load() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (!parsed.categories || !parsed.categories.length) parsed.categories = DEFAULT_CATEGORIES.slice();
+        return parsed;
+      }
     } catch (e) {}
-    return { items: [], recipes: [], grocery: [], receipts: [], setupDone: false, openCats: {} };
+    return { items: [], recipes: [], grocery: [], receipts: [], setupDone: false, openCats: {}, categories: DEFAULT_CATEGORIES.slice() };
   }
   function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -402,6 +429,7 @@
   }
 
   function addOrIncrementPantryItem(data) {
+    if (data.category && state.categories.indexOf(data.category) === -1) state.categories.push(data.category);
     var existing = state.items.find(function (it) { return normName(it.name) === normName(data.name) && it.category === data.category; });
     if (existing) {
       existing.quantity_value = round2((existing.quantity_value || 0) + (data.quantity_value || 0));
@@ -442,7 +470,7 @@
 
     var byCat = {};
     items.forEach(function (it) { (byCat[it.category] = byCat[it.category] || []).push(it); });
-    var cats = CATEGORIES.filter(function (c) { return byCat[c]; });
+    var cats = state.categories.filter(function (c) { return byCat[c]; });
     Object.keys(byCat).forEach(function (c) { if (cats.indexOf(c) === -1) cats.push(c); });
 
     list.innerHTML = cats.map(function (cat) {
@@ -477,10 +505,75 @@
   document.getElementById("pantrySearch").addEventListener("input", renderPantry);
 
   function categoryOptions(selected) {
-    return CATEGORIES.map(function (c) { return '<option value="' + esc(c) + '"' + (c === selected ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("");
+    return state.categories.map(function (c) { return '<option value="' + esc(c) + '"' + (c === selected ? " selected" : "") + ">" + esc(c) + "</option>"; }).join("");
   }
 
   document.getElementById("btnAddItem").addEventListener("click", function () { openItemForm(); });
+  document.getElementById("btnManageCats").addEventListener("click", openCategoryManager);
+
+  function openCategoryManager() {
+    function body() {
+      return state.categories.map(function (cat) {
+        var count = state.items.filter(function (it) { return it.category === cat; }).length;
+        return '<div class="check-line" data-cat="' + esc(cat) + '" style="align-items:center;">' +
+          '<div style="flex:1;display:flex;gap:8px;align-items:center;">' +
+          '<input type="text" value="' + esc(cat) + '" data-rename style="flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:3px;background:var(--paper);" />' +
+          '<span style="font-size:11.5px;color:var(--ink-faint);white-space:nowrap;">' + count + " item" + (count === 1 ? "" : "s") + "</span>" +
+          '<button class="btn btn-ghost btn-sm btn-danger" data-delete-cat>Delete</button>' +
+          "</div></div>";
+      }).join("");
+    }
+    var html = '<div class="modal-head"><h2>Manage categories</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<p class="divider-note">Rename a category and its items follow automatically. Deleting requires reassigning its items first.</p>' +
+      '<div id="catList">' + body() + "</div>" +
+      '<div class="field-row" style="margin-top:14px;align-items:flex-end;">' +
+      '<div class="field" style="margin-bottom:0;"><label for="newCatName">Add category</label><input id="newCatName" type="text" placeholder="e.g. Baking" /></div>' +
+      '<button class="btn" id="btnAddCat">Add</button></div>' +
+      "</div>" +
+      '<div class="modal-foot"><button class="btn btn-primary" data-close>Done</button></div>';
+    var ov = openModal(html);
+    function wire() {
+      ov.querySelectorAll("[data-rename]").forEach(function (inp) {
+        var original = inp.value;
+        inp.addEventListener("change", function () {
+          var next = titleCase(inp.value.trim());
+          if (!next || next === original) { inp.value = original; return; }
+          if (state.categories.indexOf(next) !== -1) { toast("That category already exists"); inp.value = original; return; }
+          var idx = state.categories.indexOf(original);
+          state.categories[idx] = next;
+          state.items.forEach(function (it) { if (it.category === original) it.category = next; });
+          if (state.openCats[original]) { state.openCats[next] = true; delete state.openCats[original]; }
+          save(); renderPantry(); toast("Renamed to " + next);
+          ov.querySelector("[data-close]").click();
+        });
+      });
+      ov.querySelectorAll("[data-delete-cat]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var cat = b.closest("[data-cat]").getAttribute("data-cat");
+          var inUse = state.items.some(function (it) { return it.category === cat; });
+          if (inUse) { toast("Reassign items out of " + cat + " first"); return; }
+          state.categories = state.categories.filter(function (c) { return c !== cat; });
+          save(); renderPantry();
+          document.getElementById("catList").innerHTML = body();
+          wire();
+        });
+      });
+    }
+    wire();
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelector("#btnAddCat").addEventListener("click", function () {
+      var inp = ov.querySelector("#newCatName");
+      var name = titleCase(inp.value.trim());
+      if (!name) return;
+      if (state.categories.indexOf(name) !== -1) { toast("That category already exists"); return; }
+      state.categories.push(name);
+      save(); renderPantry();
+      document.getElementById("catList").innerHTML = body();
+      wire();
+      inp.value = "";
+    });
+  }
 
   function openItemForm(existing) {
     var isEdit = !!existing;
@@ -488,7 +581,7 @@
       '<div class="modal-head"><h2>' + (isEdit ? "Edit item" : "Add item") + '</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
       '<div class="modal-body">' +
       '<div class="field"><label for="fName">Name</label><input id="fName" type="text" value="' + (isEdit ? esc(existing.name) : "") + '" placeholder="e.g. 2% Milk" /></div>' +
-      '<div class="field"><label for="fCat">Category</label><select id="fCat">' + categoryOptions(isEdit ? existing.category : CATEGORIES[0]) + "</select></div>" +
+      '<div class="field"><label for="fCat">Category</label><select id="fCat">' + categoryOptions(isEdit ? existing.category : state.categories[0]) + "</select></div>" +
       '<div class="field-row">' +
       '<div class="field"><label for="fType">Tracked by</label><select id="fType"><option value="count"' + (isEdit && existing.quantity_type === "count" ? " selected" : "") + '>Count</option><option value="weight"' + (isEdit && existing.quantity_type === "weight" ? " selected" : "") + ">Weight</option></select></div>" +
       '<div class="field"><label for="fQty">Quantity</label><input id="fQty" type="number" min="0" step="0.1" value="' + (isEdit ? existing.quantity_value : 1) + '" /></div>' +
@@ -781,6 +874,39 @@
     b.addEventListener("click", function () { openReceiptReview(b.getAttribute("data-store"), MOCK_RECEIPTS[b.getAttribute("data-store")]); });
   });
   document.getElementById("btnManualReceipt").addEventListener("click", function () { openItemForm(); });
+  document.getElementById("btnPasteReceipt").addEventListener("click", openPasteReceipt);
+
+  function parseReceiptLine(line) {
+    line = line.trim().replace(/^[-*•]\s*/, "");
+    if (!line) return null;
+    var m = line.match(/^([\d.\/]+)\s*(lbs?|oz|kg|g)?\s*x?\s*(.+)$/i);
+    var qty = 1, unit = "count", weight = false, name;
+    if (m && m[2]) { qty = parseFloat(m[1]) || 1; unit = m[2].toLowerCase().replace(/s$/, ""); weight = true; name = m[3]; }
+    else if (m && /^\d+$/.test(m[1]) && m[3]) { qty = parseFloat(m[1]) || 1; name = m[3]; }
+    else name = line;
+    name = titleCase(name.replace(/[,.]$/, "").trim());
+    if (!name) return null;
+    return { raw: line, name: name, category: "Pantry Staples", qty: qty, unit: weight ? unit : "count", weight: weight };
+  }
+
+  function openPasteReceipt() {
+    var html = '<div class="modal-head"><h2>Paste receipt text</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<p class="divider-note">Works for a Farmers Market receipt, a forwarded email, or text copied out of a PDF — one item per line. A vision model would read a photo directly; this stands in for that until it\'s wired up.</p>' +
+      '<div class="field"><label for="rcptText">Receipt text</label><textarea id="rcptText" placeholder="6 tomatoes\n2 lb peaches\nsourdough loaf\nhoney jar"></textarea></div>' +
+      "</div>" +
+      '<div class="modal-foot"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-parse>Parse items →</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    ov.querySelector("[data-parse]").addEventListener("click", function () {
+      var text = ov.querySelector("#rcptText").value;
+      var lines = text.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+      var parsed = lines.map(parseReceiptLine).filter(Boolean);
+      closeModal(ov);
+      if (!parsed.length) { toast("No lines to parse"); return; }
+      openReceiptReview("Pasted receipt", parsed);
+    });
+  }
 
   function openReceiptReview(store, lines) {
     var html = '<div class="modal-head"><h2>' + esc(store) + " — review</h2><button class=\"btn btn-ghost\" data-close>✕</button></div>" +
@@ -834,6 +960,63 @@
       var d = new Date(r.date);
       return '<div class="card"><div class="card-title" style="font-size:14px;">' + esc(r.store) + '</div><div class="card-sub">' + d.toLocaleDateString() + " · " + r.itemCount + " item" + (r.itemCount === 1 ? "" : "s") + " added</div></div>";
     }).join("");
+  }
+
+  // ================= BACKUP (export / import) =================
+  document.getElementById("btnBackup").addEventListener("click", openBackupModal);
+  function openBackupModal() {
+    var canSave = typeof window.claude !== "undefined" && window.claude.downloads;
+    var html = '<div class="modal-head"><h2>Backup</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
+      '<div class="modal-body">' +
+      '<p class="divider-note">Everything lives only in this browser right now — no account, no server. Export a backup to move your pantry to another device, or before clearing browser data. This stands in for the real sync layer planned later.</p>' +
+      '<div class="field"><button class="btn btn-block" id="btnExport"' + (canSave ? "" : " disabled") + '>Export data (.json)</button></div>' +
+      (canSave ? "" : '<p class="divider-note">Downloads aren\'t available in this view — copy the JSON below manually instead.</p><div class="field"><textarea id="exportText" readonly style="min-height:120px;font-family:ui-monospace,Consolas,monospace;font-size:12px;"></textarea></div>') +
+      '<hr style="border:none;border-top:1px solid var(--line);margin:16px 0;" />' +
+      '<div class="field"><label for="importText">Restore from backup</label><textarea id="importText" placeholder="Paste exported JSON here"></textarea></div>' +
+      '<button class="btn btn-block btn-danger" id="btnImport">Replace current data with this backup</button>' +
+      "</div>" +
+      '<div class="modal-foot"><button class="btn btn-primary" data-close>Close</button></div>';
+    var ov = openModal(html);
+    ov.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { closeModal(ov); }); });
+    var exportBtn = ov.querySelector("#btnExport");
+    if (canSave) {
+      exportBtn.addEventListener("click", function () {
+        window.claude.downloads.save({ filename: "pantry-backup.json", data: JSON.stringify(state, null, 2) })
+          .then(function () { toast("Backup saved"); })
+          .catch(function (err) {
+            if (err && err.code === "declined") return;
+            toast("Couldn't save — showing JSON to copy instead");
+            var ta = ov.querySelector("#exportText");
+            if (!ta) {
+              ta = document.createElement("textarea");
+              ta.id = "exportText"; ta.readOnly = true; ta.style.cssText = "min-height:120px;font-family:ui-monospace,Consolas,monospace;font-size:12px;width:100%;margin-top:10px;";
+              exportBtn.closest(".field").appendChild(ta);
+            }
+            ta.value = JSON.stringify(state, null, 2);
+          });
+      });
+    } else {
+      ov.querySelector("#exportText").value = JSON.stringify(state, null, 2);
+    }
+    var importArmed = false;
+    var importBtn = ov.querySelector("#btnImport");
+    ov.querySelector("#importText").addEventListener("input", function () { importArmed = false; importBtn.textContent = "Replace current data with this backup"; });
+    importBtn.addEventListener("click", function () {
+      var raw = ov.querySelector("#importText").value.trim();
+      if (!raw) return;
+      var parsed;
+      try { parsed = JSON.parse(raw); } catch (e) { toast("That doesn't look like valid backup JSON"); return; }
+      if (!parsed || !Array.isArray(parsed.items)) { toast("That doesn't look like a Pantry backup"); return; }
+      if (!importArmed) {
+        importArmed = true;
+        importBtn.textContent = "Click again to confirm — this can't be undone";
+        return;
+      }
+      if (!parsed.categories || !parsed.categories.length) parsed.categories = DEFAULT_CATEGORIES.slice();
+      state = parsed;
+      save(); renderPantry(); renderGrocery(); renderRecipes(); renderReceiptHistory();
+      closeModal(ov); toast("Backup restored");
+    });
   }
 
   // ---------- init ----------
