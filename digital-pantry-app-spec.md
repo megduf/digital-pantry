@@ -214,6 +214,15 @@ Started the real backend the prototype was always meant to hand off to. Lives in
 
 Full REST API for items, categories (with rename-cascade / delete-while-unused-only), recipes, grocery, and receipts; the cook-recipe matching/reconciliation logic (ambiguous-match detection, volume-unit flagging, shortfall-to-grocery) was ported over from the prototype's JS. Verified against a live server: CRUD across all five resources, cook-and-deduct, category rename cascade, and the AI endpoints failing gracefully (502, server stays up) when no `ANTHROPIC_API_KEY` is configured.
 
-**Not done yet:** the `pantry.html` prototype is not wired to this backend — it still runs entirely against `localStorage`. That's the next step: replace the prototype's local state calls with `fetch`s against these endpoints, and swap its simulated OCR/parsing for real calls to `/api/receipts/parse-image` and `/api/recipes/parse`. See `server/README.md` for the endpoint list and setup (needs a user-supplied `ANTHROPIC_API_KEY` in `server/.env`).
+**Update (2026-08-04): frontend wired to the backend.** `server/public/index.html` is the real app now — same design and flows as `pantry.html`, but talks to the backend via `fetch` instead of `localStorage`, and the backend serves it from the same origin (`http://localhost:3001`) so there's no CORS to manage. This was a bigger architectural move than "add fetch calls": an Artifact's sandbox blocks all outbound network requests except through a couple of narrow capabilities, so the app fundamentally could not call a local backend while still hosted as an Artifact. Moving to a real page served by Express was the only way through — which is also why `pantry.html` at the repo root is no longer the active version; it's kept as a reference/offline demo but is now a step behind.
 
-*Doc is ready to drive continued prototype iteration and, eventually, the real build.*
+Real backend, real change in what's possible:
+- Receipt scanning: a real photo upload → real Claude vision OCR (`/api/receipts/parse-image`), not a per-store mock
+- Recipe parsing: a real Claude call (`/api/recipes/parse`) — and unlike receipts, there's no local fallback left for this path, so adding a recipe now requires `ANTHROPIC_API_KEY` to be configured
+- The receipt paste-text fallback (Farmers Market, forwarded emails) stayed local — a regex heuristic, not worth a model call
+- Cook-recipe matching/reconciliation logic moved server-side entirely; the frontend just calls `/api/recipes/:id/cook` and renders whatever comes back
+- Backup: real `<a download>` JSON export now that we're not Artifact-sandboxed; restore-from-file isn't built (no bulk-import endpoint yet)
+
+Verified with a scripted Playwright pass against a live server (see `server/README.md` for the full flow list) — starter checklist, item CRUD, category rename cascade, quantity steppers, full grocery flow, receipt paste→review→confirm with a correct money-spent total, and the recipe-parse endpoint failing gracefully (toast, not a crash) with no API key configured.
+
+*Doc is ready to drive continued iteration on the real app in `server/`.*

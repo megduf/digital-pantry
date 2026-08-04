@@ -15,20 +15,20 @@ groceryRouter.get("/", (_req, res) => {
 });
 
 groceryRouter.post("/", (req, res) => {
-  const { name, quantity, unit } = req.body ?? {};
+  const { name, quantity, unit, note, source } = req.body ?? {};
   if (!name) return res.status(400).json({ error: "name is required" });
   const item: GroceryItem = {
     id: randomUUID(),
     name,
     quantity: quantity ?? 0,
     unit: unit ?? null,
-    note: null,
-    source: "manual",
+    note: note ?? null,
+    source: source === "auto" ? "auto" : "manual",
     checked: false,
   };
   db.prepare(
-    "INSERT INTO grocery_items (id, name, quantity, unit, note, source, checked) VALUES (?, ?, ?, ?, ?, 'manual', 0)"
-  ).run(item.id, item.name, item.quantity, item.unit, item.note);
+    "INSERT INTO grocery_items (id, name, quantity, unit, note, source, checked) VALUES (?, ?, ?, ?, ?, ?, 0)"
+  ).run(item.id, item.name, item.quantity, item.unit, item.note, item.source);
   res.status(201).json(item);
 });
 
