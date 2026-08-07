@@ -225,4 +225,12 @@ Real backend, real change in what's possible:
 
 Verified with a scripted Playwright pass against a live server (see `server/README.md` for the full flow list) — starter checklist, item CRUD, category rename cascade, quantity steppers, full grocery flow, receipt paste→review→confirm with a correct money-spent total, and the recipe-parse endpoint failing gracefully (toast, not a crash) with no API key configured.
 
+**Update (2026-08-07): tests + backup restore.** The backend had real business logic (cook-recipe matching, category-rename cascade, receipt money totals) and zero automated coverage — that's the kind of thing that silently regresses as the app keeps growing, so this pass closed it:
+- 29-test suite on Node's built-in test runner, running against an isolated in-memory SQLite database (never touches the real `pantry.db`) — covers cook-recipe logic directly (ambiguous matches, volume-unit flagging, shortfall-to-grocery) plus route-level tests for every resource, including the `/` character in `Household / Non-Food`-style category names surviving URL routing correctly
+- The two AI-calling endpoints are skipped in the suite unless `ANTHROPIC_API_KEY` is set, rather than mocked — kept as true end-to-end checks against the real model instead of tests that would just confirm a hand-written fake behaves like a hand-written fake
+- Along the way, extracted Express app construction (`app.ts`) from server startup (`index.ts`) so tests can spin up the app without binding a port — a standard testability refactor
+- Completed the backup feature: `POST /api/backup/restore` (transactional — a malformed file can't leave the database half-wiped) plus the frontend upload-and-confirm UI, closing the gap flagged in the last update
+
+Verified with `npm test` (29 passed, 1 correctly skipped without an API key) and a second scripted Playwright pass specifically driving the restore flow end-to-end through the real UI.
+
 *Doc is ready to drive continued iteration on the real app in `server/`.*

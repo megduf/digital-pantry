@@ -1193,13 +1193,16 @@
     }).join("");
   }
 
-  // ================= BACKUP (export) =================
+  // ================= BACKUP (export / restore) =================
   document.getElementById("btnBackup").addEventListener("click", openBackupModal);
   function openBackupModal() {
     var html = '<div class="modal-head"><h2>Backup</h2><button class="btn btn-ghost" data-close>✕</button></div>' +
       '<div class="modal-body">' +
-      '<p class="divider-note">Your pantry lives in the server\'s database now (<code>server/pantry.db</code>), not just this browser. This downloads a portable JSON copy for backup or moving machines — restoring from a backup file isn\'t wired up yet.</p>' +
+      '<p class="divider-note">Your pantry lives in the server\'s database now (<code>server/pantry.db</code>), not just this browser. Export a portable copy for backup or moving machines.</p>' +
       '<button class="btn btn-block" id="btnExport">Export data (.json)</button>' +
+      '<hr style="border:none;border-top:1px solid var(--line);margin:16px 0;" />' +
+      '<div class="field"><label for="importFile">Restore from backup</label><input type="file" id="importFile" accept="application/json,.json" /></div>' +
+      '<button class="btn btn-block btn-danger" id="btnImport" disabled>Replace current data with this backup</button>' +
       "</div>" +
       '<div class="modal-foot"><button class="btn btn-primary" data-close>Close</button></div>';
     var ov = openModal(html);
@@ -1213,6 +1216,44 @@
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
       toast("Backup downloaded");
+    });
+
+    var pendingBackup = null;
+    var importArmed = false;
+    var fileInput = ov.querySelector("#importFile");
+    var importBtn = ov.querySelector("#btnImport");
+    fileInput.addEventListener("change", function () {
+      var file = fileInput.files && fileInput.files[0];
+      pendingBackup = null; importArmed = false;
+      importBtn.disabled = true; importBtn.textContent = "Replace current data with this backup";
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var parsed = JSON.parse(String(reader.result));
+          if (!parsed || !Array.isArray(parsed.items)) throw new Error("not a backup file");
+          pendingBackup = parsed;
+          importBtn.disabled = false;
+        } catch (e) {
+          toast("That doesn't look like a Pantry backup file");
+        }
+      };
+      reader.onerror = function () { toast("Could not read that file"); };
+      reader.readAsText(file);
+    });
+    importBtn.addEventListener("click", function () {
+      if (!pendingBackup) return;
+      if (!importArmed) {
+        importArmed = true;
+        importBtn.textContent = "Click again to confirm — this can't be undone";
+        return;
+      }
+      api("POST", "/backup/restore", pendingBackup).then(function () {
+        return Promise.all([refreshItems(), refreshCategories(), refreshRecipes(), refreshGrocery(), refreshReceipts()]);
+      }).then(function () {
+        renderPantry(); renderGrocery(); renderRecipes(); renderReceiptHistory();
+        closeModal(ov); toast("Backup restored");
+      }).catch(apiError);
     });
   }
 

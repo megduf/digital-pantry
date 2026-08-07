@@ -52,6 +52,7 @@ Open **http://localhost:3001** in a browser. `pantry.db` is created automaticall
 | GET | `/api/receipts` | Receipt history (for the money-spent summary) |
 | POST | `/api/receipts/parse-image` | AI vision OCR on a receipt photo (base64) — returns a review checklist |
 | POST | `/api/receipts/confirm` | Confirm a reviewed receipt: adds items to pantry, records the receipt total |
+| POST | `/api/backup/restore` | Replace all data with the contents of a previously exported backup (transactional — a malformed file leaves existing data untouched) |
 
 ## Frontend
 
@@ -59,13 +60,20 @@ Open **http://localhost:3001** in a browser. `pantry.db` is created automaticall
 - Receipt scanning is a real photo upload (file input) → `/api/receipts/parse-image`, not a per-store mock
 - Recipe ingredient parsing is a real AI call → `/api/recipes/parse`, with no local fallback (the old prototype's regex parser is gone from this path)
 - The receipt paste-text fallback stayed local (no backend endpoint for it — it's a lightweight heuristic, not worth an AI call)
-- Backup is now a plain JSON download of the current server data (real browser, no Artifact sandbox needed) — restore-from-file isn't wired up, since there's no bulk-import endpoint yet
+- Backup is a plain JSON download (real browser, no Artifact sandbox needed); restore uploads a backup file and replaces all data after a double-click confirm
 - UI-only state (which categories are expanded, whether first-run setup is done) still lives in `localStorage`; everything else is server-backed
 
-Verified with a scripted Playwright pass against a live server: starter checklist → item add → category rename (cascades) → quantity stepper → grocery add/check/move-to-pantry → receipt paste-text → review → confirm (money-spent total came out correct) → recipe parse failing gracefully with no API key configured.
+Verified with scripted Playwright passes against a live server: starter checklist → item add → category rename (cascades) → quantity stepper → grocery add/check/move-to-pantry → receipt paste-text → review → confirm (money-spent total came out correct) → recipe parse failing gracefully with no API key configured; and separately, backup restore replacing existing data correctly.
+
+## Tests
+
+```
+npm test
+```
+
+Runs on Node's built-in test runner (`node --test` via `tsx`) against an isolated in-memory SQLite database — never touches `pantry.db`. Covers the cook-recipe matching/reconciliation logic directly (ambiguous matches, volume-unit flagging, shortfall-to-grocery) plus route-level tests for items, categories (including the rename cascade and the `/` in `Household / Non-Food`-style category names), grocery, recipes, receipts, and backup restore. The two AI-calling endpoints (`/api/recipes/parse`, `/api/receipts/parse-image`) are skipped unless `ANTHROPIC_API_KEY` is set, so they stay true end-to-end checks against the real model rather than being mocked.
 
 ## Not built yet
 
-- Restoring from a backup JSON file (no bulk-import endpoint)
 - Multi-user / household sharing
 - Deploying this anywhere — it's local-only right now (`localhost:3001`)

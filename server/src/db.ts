@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, "..", "pantry.db");
+// Tests set PANTRY_DB_PATH=:memory: for a fresh, isolated database per process.
+const dbPath = process.env.PANTRY_DB_PATH || path.join(__dirname, "..", "pantry.db");
 
 export const db = new DatabaseSync(dbPath);
 
@@ -52,7 +53,7 @@ db.exec(`
   );
 `);
 
-const DEFAULT_CATEGORIES = [
+export const DEFAULT_CATEGORIES = [
   "Vegetables",
   "Fruits",
   "Starches",
