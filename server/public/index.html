@@ -283,7 +283,10 @@
     <section class="panel" id="panel-receipts">
       <h2 style="font-size:16px;margin-bottom:6px;">Scan a receipt</h2>
       <p class="divider-note">Upload a photo for real AI vision OCR, paste in text from a PDF/email/Farmers Market receipt, or add items by hand.</p>
-      <button class="btn btn-block" id="btnScanPhoto" style="margin-bottom:8px;">+ Scan receipt photo</button>
+      <div style="margin-bottom:8px;">
+        <button class="btn btn-block" id="btnScanPhoto">+ Scan receipt photo</button>
+        <p class="divider-note" id="scanPhotoNote" style="display:none;margin:4px 0 0;">Needs an API key on the server — use "Paste receipt text" below instead for now.</p>
+      </div>
       <input type="file" id="receiptPhotoInput" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;" />
       <button class="btn btn-block" id="btnPasteReceipt" style="margin-bottom:8px;">+ Paste receipt text (PDF, email, or Farmers Market)</button>
       <button class="btn btn-block" id="btnManualReceipt">+ Add receipt item manually</button>
@@ -1284,7 +1287,13 @@
       var health = results[0];
       document.getElementById("bootOverlay").style.display = "none";
       document.getElementById("app").style.display = "flex";
-      if (health && health.aiConfigured === false) document.getElementById("aiWarning").classList.add("show");
+      if (health && health.aiConfigured === false) {
+        document.getElementById("aiWarning").classList.add("show");
+        var scanBtn = document.getElementById("btnScanPhoto");
+        scanBtn.disabled = true;
+        scanBtn.title = "Needs an ANTHROPIC_API_KEY configured on the server";
+        document.getElementById("scanPhotoNote").style.display = "block";
+      }
       renderPantry(); renderGrocery(); renderRecipes(); renderReceiptHistory();
       if (state.items.length === 0 && !state.setupDone) setTimeout(openStarterChecklist, 300);
     }).catch(showBootError);
